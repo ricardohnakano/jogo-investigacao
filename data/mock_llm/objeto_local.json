@@ -1,0 +1,36 @@
+{
+  "dicas_uteis": [
+    "O objeto encontrado pertencia ao criminoso há mais de cinco anos e tinha valor sentimental.",
+    "O local do crime fica em uma área onde poucas pessoas têm acesso fora do horário comercial.",
+    "Uma marca distintiva no objeto sugere que ele foi manipulado em estado de raiva ou pressa."
+  ],
+  "dicas_enganosas": [
+    "Há sinais de luta no escritório do andar de cima — mas eram resíduos de uma briga anterior, não relacionada.",
+    "Um perfume forte foi notado na sala, mas era do produto de limpeza usado naquela tarde."
+  ],
+  "dicas_falsas": [
+    "Uma testemunha jura ter visto duas pessoas no local — mas estava embriagada e confundiu reflexos no vidro.",
+    "Câmera de segurança mostra alguém saindo às 22h17 — mas a câmera estava com o horário desregulado em 1h."
+  ],
+  "dicas_inuteis": [
+    "O zelador do prédio comentou que tinha sido um dia particularmente movimentado.",
+    "Havia restos de café de máquina recém-feito ao lado do objeto."
+  ],
+  "extras_falsas": [
+    "Um pedaço de tecido vermelho foi achado no estacionamento.",
+    "Pegadas de salto alto na sala de espera apontavam para a saída de emergência.",
+    "Um celular descartado foi achado no banheiro do segundo andar.",
+    "Um livro com anotações sublinhadas estava na mesa da recepcionista.",
+    "Uma luva de couro preta foi encontrada no jardim.",
+    "Marcas de pneus de bicicleta no estacionamento subterrâneo.",
+    "Um bilhete amassado mencionava uma reunião no salão de baile.",
+    "Vestígios de areia molhada apareciam no corredor central.",
+    "Uma garrafa de vinho vazia estava na adega do clube.",
+    "Um pen drive com etiqueta colorida foi achado na sala de servidores.",
+    "Marcas de queimadura na mesa do laboratório universitário.",
+    "Uma foto rasgada estava sob o tapete do camarim.",
+    "Recibo de viagem de táxi datado da noite anterior na sala de leilões.",
+    "Um lenço bordado com iniciais aparecia no jardim do palacete.",
+    "Cabos de extensão emaranhados no estúdio de gravação."
+  ]
+}

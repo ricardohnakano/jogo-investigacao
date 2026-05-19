@@ -1,0 +1,21 @@
+{
+  "dicas_uteis": [
+    "Tem acesso ao local fora do horário comercial e conhecia bem a rotina da vítima.",
+    "Foi visto consultando documentos sigilosos relacionados ao caso na semana anterior.",
+    "Mantinha contato esporádico com a vítima nos últimos meses, em encontros tensos segundo colegas.",
+    "Tem histórico profissional que se cruzou com o da vítima em pelo menos uma situação conflituosa.",
+    "Demonstrou interesse incomum por detalhes da agenda da vítima nos dias antes do crime."
+  ],
+  "dicas_enganosas": [
+    "Outro funcionário tinha disputa pública de promoção com a vítima — mas estava em viagem.",
+    "Um colaborador costumava trabalhar até tarde no mesmo andar, mas tinha turno duplo confirmado fora."
+  ],
+  "dicas_falsas": [
+    "Alguém alegou ter visto o suspeito em um restaurante naquela noite — mas era seu sósia, um irmão gêmeo de outro envolvido.",
+    "Registro de entrada mostrava saída às 19h — mas o crachá foi usado por outra pessoa."
+  ],
+  "dicas_inuteis": [
+    "Tem hábito de ouvir música clássica quando trabalha.",
+    "Mora a 15 quilômetros do local, em uma região arborizada."
+  ]
+}

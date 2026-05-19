@@ -173,8 +173,18 @@ async def _run_countdown(game_id: str) -> None:
             await asyncio.sleep(1)
 
 
+async def _broadcast_step(game_id: str, label: str) -> None:
+    from jogo.realtime import manager
+    html = (
+        f'<div id="generating-step" hx-swap-oob="outerHTML">'
+        f'<p class="muted">{label}</p>'
+        f'</div>'
+    )
+    await manager.broadcast(game_id, html)
+
+
 async def _run_generation(game_id: str) -> None:
-    from jogo import crime
+    from jogo import crime, narrative
     from jogo.realtime import manager
 
     with Session(db_engine) as session:
@@ -182,10 +192,17 @@ async def _run_generation(game_id: str) -> None:
         if not game or game.status != GameStatus.GENERATING:
             return
 
+        await _broadcast_step(game_id, "Sorteando personagens e dados do crime…")
         crime.generate(session, game)
-        problems = crime.validate_generated(session, game.id)
-        if problems:
-            raise RuntimeError(f"Geração inválida: {problems}")
+        crime_problems = crime.validate_generated(session, game.id)
+        if crime_problems:
+            raise RuntimeError(f"Sorteio inválido: {crime_problems}")
+
+        await _broadcast_step(game_id, "Construindo a história, dicas e linha do tempo (pode levar até 1 minuto)…")
+        await asyncio.to_thread(narrative.generate_all, session, game)
+        narrative_problems = narrative.validate_persisted(session, game.id)
+        if narrative_problems:
+            raise RuntimeError(f"Narrativa inválida: {narrative_problems}")
 
         finish_generation(session, game)
 

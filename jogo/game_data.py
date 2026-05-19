@@ -207,9 +207,48 @@ class FuncaoEspecial(str, Enum):
 PROB_CUMPLICE_1 = 0.80
 PROB_CUMPLICE_2 = 0.60
 
+
+class ClueCategory(str, Enum):
+    OBJETO_LOCAL = "objeto_local"
+    FICHA_CIVIL = "ficha_civil"
+    LINHA_TEMPO = "linha_tempo"
+
+
+class ClueVeracity(str, Enum):
+    VERDADEIRA = "verdadeira"
+    ENGANOSA = "enganosa"
+    FALSA = "falsa"
+    INUTIL = "inutil"
+
+
+CLUE_COUNTS: dict[ClueCategory, dict[ClueVeracity, int]] = {
+    ClueCategory.OBJETO_LOCAL: {
+        ClueVeracity.VERDADEIRA: 3,
+        ClueVeracity.ENGANOSA: 2,
+        ClueVeracity.FALSA: 2,
+        ClueVeracity.INUTIL: 2,
+    },
+    ClueCategory.FICHA_CIVIL: {
+        ClueVeracity.VERDADEIRA: 5,
+        ClueVeracity.ENGANOSA: 2,
+        ClueVeracity.FALSA: 2,
+        ClueVeracity.INUTIL: 2,
+    },
+    ClueCategory.LINHA_TEMPO: {
+        ClueVeracity.VERDADEIRA: 3,
+        ClueVeracity.ENGANOSA: 2,
+        ClueVeracity.FALSA: 2,
+        ClueVeracity.INUTIL: 2,
+    },
+}
+
+EXTRA_FALSE_OBJETO_LOCAL = 15
+
+
 MIN_PLAYERS_PER_TEAM = 3
 MIN_TEAMS = 2
 MIN_TOTAL_PLAYERS = 6
 MAX_TOTAL_PLAYERS = 24
 COUNTDOWN_SECONDS = 10
 GENERATION_MIN_SECONDS = 2
+LLM_MAX_RETRIES = 3
