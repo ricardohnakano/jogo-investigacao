@@ -81,7 +81,11 @@ def game_entry(
     taken = {t.equipe for t in teams}
     available = [e for e in Equipe if e not in taken]
 
-    if game.status in (GameStatus.PLAYING, GameStatus.COUNTDOWN, GameStatus.FINISHED):
+    if game.status == GameStatus.GENERATING:
+        return templates.TemplateResponse(
+            request, "generating.html", {"game": game}
+        )
+    if game.status in (GameStatus.PLAYING, GameStatus.FINISHED):
         return templates.TemplateResponse(
             request, "playing.html", {"game": game}
         )
@@ -139,7 +143,11 @@ def team_room(
 
     engine.sync_status(session, game)
 
-    if game.status in (GameStatus.PLAYING, GameStatus.COUNTDOWN, GameStatus.FINISHED):
+    if game.status == GameStatus.GENERATING:
+        return templates.TemplateResponse(
+            request, "generating.html", {"game": game, "team": team}
+        )
+    if game.status in (GameStatus.PLAYING, GameStatus.FINISHED):
         return templates.TemplateResponse(
             request, "playing.html", {"game": game, "team": team}
         )
@@ -221,7 +229,13 @@ def player_page(
 
     engine.sync_status(session, game)
 
-    if game.status in (GameStatus.PLAYING, GameStatus.COUNTDOWN, GameStatus.FINISHED):
+    if game.status == GameStatus.GENERATING:
+        return templates.TemplateResponse(
+            request,
+            "generating.html",
+            {"game": game, "team": team, "player": player},
+        )
+    if game.status in (GameStatus.PLAYING, GameStatus.FINISHED):
         return templates.TemplateResponse(
             request,
             "playing.html",
@@ -301,10 +315,16 @@ async def toggle_ready(
 
     if (
         engine.can_start(session, game.id)
-        and game.status != GameStatus.COUNTDOWN
+        and game.status == GameStatus.READY_CHECK
     ):
-        engine.start_countdown(session, game)
-        engine.schedule_countdown_task(game.id)
+        engine.start_generation(session, game)
+        engine.schedule_generation_task(game.id)
+        reload_html = (
+            '<div id="reload-trigger" hx-swap-oob="outerHTML">'
+            '<script>setTimeout(()=>location.reload(),200)</script>'
+            '</div>'
+        )
+        await manager.broadcast(game.id, reload_html)
 
     await _broadcast_update(session, game)
     return RedirectResponse(url="/jogador", status_code=303)
