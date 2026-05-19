@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Jogo {{ game.id }} — em andamento{% endblock %}
+{% block header_extras %}
+<div class="header-meta">
+    <span>Jogo: <strong>{{ game.id }}</strong></span>
+    {% if team is defined %}<span>{{ EQUIPE_LABEL[team.equipe] }}</span>{% endif %}
+</div>
+{% endblock %}
+{% block content %}
+<section class="playing">
+    <div class="card center">
+        <h2>🎮 Jogo iniciado!</h2>
+        <p>O loop principal do jogo (ciclos de 10min, ações, pistas) é o próximo PR.</p>
+        <p class="muted">Status atual: <code>{{ game.status.value }}</code></p>
+    </div>
+</section>
+{% endblock %}

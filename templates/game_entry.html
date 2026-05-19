@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Jogo {{ game.id }} — Escolher Equipe{% endblock %}
+{% block body_attrs %}hx-ext="ws" ws-connect="/ws/{{ game.id }}"{% endblock %}
+{% block header_extras %}
+<div class="header-meta">
+    <span>Jogo: <strong>{{ game.id }}</strong></span>
+    <span id="status-bar">Status: {{ game.status.value }}</span>
+</div>
+{% endblock %}
+{% block content %}
+<section class="game-entry">
+    <h2>Esta sala vai jogar como qual equipe?</h2>
+    <p class="muted">
+        Cada sala escolhe uma equipe diferente. As já escolhidas em outras salas ficam bloqueadas.
+    </p>
+    {% include "_equipe_picker.html" %}
+</section>
+{% endblock %}

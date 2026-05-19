@@ -1,0 +1,19 @@
+{% set taken = teams_data | map(attribute='team') | map(attribute='equipe') | list %}
+{% include "_equipe_picker.html" %}
+
+{% for td in teams_data %}
+    {% include "_roster.html" %}
+{% endfor %}
+
+<div id="status-bar" hx-swap-oob="outerHTML">
+    Status: {{ game.status.value }}
+    {% if can_start %}<span class="all-ready">✓ todos prontos</span>{% endif %}
+</div>
+
+{% if game.status.value == 'countdown' %}
+<div id="countdown-area" hx-swap-oob="outerHTML">
+    <div class="countdown-banner">
+        Iniciando em <div id="countdown" class="countdown-big">…</div>
+    </div>
+</div>
+{% endif %}

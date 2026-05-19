@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Jogo {{ game.id }} — {{ EQUIPE_LABEL[team.equipe] }}{% endblock %}
+{% block body_attrs %}hx-ext="ws" ws-connect="/ws/{{ game.id }}"{% endblock %}
+{% block header_extras %}
+<div class="header-meta">
+    <span>Jogo: <strong>{{ game.id }}</strong></span>
+    <span>Equipe: <strong>{{ EQUIPE_LABEL[team.equipe] }}</strong></span>
+    <span id="status-bar">Status: {{ game.status.value }}</span>
+</div>
+{% endblock %}
+{% block content %}
+<section class="team-room">
+    <div class="qr-section">
+        <h2>Jogadores: aponte o celular</h2>
+        <img src="{{ qr_data_url }}" alt="QR code" class="qr">
+        <p class="muted"><code>{{ join_url }}</code></p>
+    </div>
+
+    <div class="rosters">
+        {% for td in teams_data %}
+            {% if td.team.id == team.id %}
+                {% include "_roster.html" %}
+            {% endif %}
+        {% endfor %}
+
+        <details class="other-teams">
+            <summary>Outros times</summary>
+            {% for td in teams_data %}
+                {% if td.team.id != team.id %}
+                    {% include "_roster.html" %}
+                {% endif %}
+            {% endfor %}
+            {% if teams_data|length <= 1 %}
+            <p class="empty">Nenhum outro time entrou ainda.</p>
+            {% endif %}
+        </details>
+    </div>
+
+    <div id="countdown-area">
+        {% if game.status.value == 'countdown' %}
+        <div class="countdown-banner">
+            Iniciando em <div id="countdown" class="countdown-big">…</div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

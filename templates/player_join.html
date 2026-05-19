@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Entrando em {{ EQUIPE_LABEL[team.equipe] }}{% endblock %}
+{% block content %}
+<section class="player-join">
+    <div class="card">
+        <h2>Você está entrando como:</h2>
+        <p class="big">{{ EQUIPE_LABEL[team.equipe] }}</p>
+        <p class="muted">Jogo {{ game.id }}</p>
+        <form method="post" action="/entrar/{{ game.id }}/sala/{{ team.id }}">
+            <label for="nome">Seu nome:</label>
+            <input id="nome" name="nome" type="text" maxlength="40" required autofocus>
+            <button type="submit" class="btn-primary">Entrar</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

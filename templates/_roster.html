@@ -1,0 +1,22 @@
+<div id="roster-{{ td.team.id }}" class="roster" hx-swap-oob="outerHTML">
+    <header class="roster-header">
+        <h3>{{ EQUIPE_LABEL[td.team.equipe] }}</h3>
+        <span class="counter">{{ td.players|length }} jogador{{ 'es' if td.players|length != 1 else '' }}</span>
+    </header>
+    {% if td.players %}
+    <ul class="player-list">
+        {% for p in td.players %}
+        <li class="player-row {% if p.ready %}ready{% endif %}">
+            <span class="player-name">{{ p.nome or 'sem nome' }}</span>
+            <span class="player-prof">
+                {% if p.profissao %}{{ PROFISSAO_INFO[p.profissao][0] }}
+                {% else %}<em>escolhendo profissão…</em>{% endif %}
+            </span>
+            <span class="player-ready">{% if p.ready %}✓ pronto{% else %}…{% endif %}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty">Aguardando jogadores entrarem pelo QR code.</p>
+    {% endif %}
+</div>

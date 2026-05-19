@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ player.nome or 'Jogador' }} — {{ EQUIPE_LABEL[team.equipe] }}{% endblock %}
+{% block body_attrs %}hx-ext="ws" ws-connect="/ws/{{ game.id }}"{% endblock %}
+{% block header_extras %}
+<div class="header-meta">
+    <span>Jogo: <strong>{{ game.id }}</strong></span>
+    <span>{{ EQUIPE_LABEL[team.equipe] }}</span>
+</div>
+{% endblock %}
+{% block content %}
+<section class="player">
+    <div class="card">
+        <h2>{{ player.nome }}</h2>
+        {% if player.profissao %}
+        <div class="chosen-profession">
+            <h3>{{ PROFISSAO_INFO[player.profissao][0] }}</h3>
+            <p class="action">{{ PROFISSAO_INFO[player.profissao][1] }}</p>
+        </div>
+
+        <form method="post" action="/jogador/pronto">
+            {% if player.ready %}
+            <button type="submit" class="btn-secondary">Cancelar pronto</button>
+            <p class="ready-status">✓ Você está pronto. Aguardando outros…</p>
+            {% else %}
+            <button type="submit" class="btn-primary">Pronto!</button>
+            {% endif %}
+        </form>
+
+        {% if not player.ready %}
+        <details>
+            <summary class="muted">Mudar profissão</summary>
+            <form method="post" action="/jogador/profissao" class="prof-form">
+                {% for p in available_profs %}
+                <label class="prof-option">
+                    <input type="radio" name="profissao" value="{{ p.value }}" required>
+                    <span class="prof-name">{{ PROFISSAO_INFO[p][0] }}</span>
+                    <span class="prof-action">{{ PROFISSAO_INFO[p][1] }}</span>
+                </label>
+                {% endfor %}
+                <button type="submit" class="btn-secondary">Trocar</button>
+            </form>
+        </details>
+        {% endif %}
+        {% else %}
+        <form method="post" action="/jogador/profissao" class="prof-form">
+            <h3>Escolha sua profissão</h3>
+            {% for p in available_profs %}
+            <label class="prof-option">
+                <input type="radio" name="profissao" value="{{ p.value }}" required>
+                <span class="prof-name">{{ PROFISSAO_INFO[p][0] }}</span>
+                <span class="prof-action">{{ PROFISSAO_INFO[p][1] }}</span>
+            </label>
+            {% endfor %}
+            <button type="submit" class="btn-primary">Confirmar</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="card teammates">
+        <h3>Sua equipe</h3>
+        <ul class="player-list">
+            {% for p in teammates %}
+            <li class="player-row {% if p.ready %}ready{% endif %} {% if p.id == player.id %}me{% endif %}">
+                <span class="player-name">{{ p.nome }}{% if p.id == player.id %} (você){% endif %}</span>
+                <span class="player-prof">
+                    {% if p.profissao %}{{ PROFISSAO_INFO[p.profissao][0] }}
+                    {% else %}<em>escolhendo…</em>{% endif %}
+                </span>
+                <span class="player-ready">{% if p.ready %}✓{% else %}…{% endif %}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div id="countdown-area">
+        {% if game.status.value == 'countdown' %}
+        <div class="countdown-banner">
+            Iniciando em <div id="countdown" class="countdown-big">…</div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

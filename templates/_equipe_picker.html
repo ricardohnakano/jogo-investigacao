@@ -1,0 +1,18 @@
+<div id="equipe-picker" class="equipe-picker" hx-swap-oob="outerHTML">
+    {% for e, label in EQUIPE_LABEL.items() %}
+        {% if e in taken %}
+            <div class="equipe-card taken">
+                <span class="equipe-name">{{ label }}</span>
+                <span class="equipe-status">já escolhida</span>
+            </div>
+        {% else %}
+            <form method="post" action="/jogo/{{ game.id }}/equipe">
+                <input type="hidden" name="equipe" value="{{ e.value }}">
+                <button type="submit" class="equipe-card available">
+                    <span class="equipe-name">{{ label }}</span>
+                    <span class="equipe-status">escolher esta sala</span>
+                </button>
+            </form>
+        {% endif %}
+    {% endfor %}
+</div>
