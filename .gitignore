@@ -220,5 +220,6 @@ __marimo__/
 # Projeto
 data/*
 !data/seed
+!data/mock_llm
 data/games/
 

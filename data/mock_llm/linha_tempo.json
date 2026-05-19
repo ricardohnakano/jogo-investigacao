@@ -1,0 +1,34 @@
+{
+  "eventos_uteis": [
+    "21:00 — o criminoso entrou no local utilizando acesso autorizado.",
+    "21:15 — a vítima foi vista chegando sozinha, aparentando preocupação.",
+    "21:25 — som de objetos caindo foi reportado por um vizinho do andar de baixo."
+  ],
+  "eventos_enganosos": [
+    "20:50 — outro funcionário discutiu com a vítima no corredor, mas se afastou em seguida.",
+    "21:30 — um vigilante anotou movimentação no jardim, mas confirmou depois que era um morador comum."
+  ],
+  "eventos_falsos": [
+    "22:00 — câmera do estacionamento registra saída de carro vermelho — era de um inquilino voltando do trabalho.",
+    "21:45 — uma chamada anônima reportou tumulto no local — depois confirmou-se ser engano de endereço."
+  ],
+  "eventos_inuteis": [
+    "21:10 — entrega de comida foi recebida pelo porteiro.",
+    "21:35 — vizinho do quinto andar regava plantas na varanda."
+  ],
+  "distracao_personagem_1": [
+    "18:00 — saiu do trabalho e tomou metrô.",
+    "18:45 — passou na academia.",
+    "20:00 — jantou em casa.",
+    "21:30 — assistiu TV com a família.",
+    "23:00 — foi dormir."
+  ],
+  "distracao_personagem_1_nome": "Personagem Aleatório Um",
+  "distracao_personagem_2": [
+    "17:30 — estava em reunião remota com cliente.",
+    "19:00 — passou na livraria.",
+    "20:15 — encontrou amigos para café.",
+    "22:00 — voltou para casa de táxi."
+  ],
+  "distracao_personagem_2_nome": "Personagem Aleatório Dois"
+}

@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from jogo.game_data import Equipe, FuncaoEspecial, Profissao
+from jogo.game_data import ClueCategory, ClueVeracity, Equipe, FuncaoEspecial, Profissao
 
 
 class GameStatus(str, Enum):
@@ -57,9 +57,11 @@ class Game(SQLModel, table=True):
     local: Optional[str] = None
     objeto: Optional[str] = None
     motivacional: Optional[str] = None
+    historia_completa: Optional[str] = None
 
     teams: list["Team"] = Relationship(back_populates="game")
     characters: list["Character"] = Relationship(back_populates="game")
+    clues: list["Clue"] = Relationship(back_populates="game")
 
 
 class Team(SQLModel, table=True):
@@ -103,6 +105,8 @@ class Character(SQLModel, table=True):
     genero: str
     avatar_seed: str
     personalidade: str
+    relacao_com_vitima: Optional[str] = None
+    comentario: Optional[str] = None
 
     funcao_especial: FuncaoEspecial = Field(default=FuncaoEspecial.NENHUMA)
     eliminated: bool = False
@@ -110,3 +114,25 @@ class Character(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_utcnow)
 
     game: Optional[Game] = Relationship(back_populates="characters")
+
+
+class Clue(SQLModel, table=True):
+    """Pista gerada por LLM (objeto/local, ficha civil, linha do tempo)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    game_id: str = Field(foreign_key="game.id", index=True)
+    categoria: ClueCategory
+    veracidade: ClueVeracity
+    conteudo: str
+    target_character_id: Optional[int] = Field(
+        default=None, foreign_key="character.id", index=True
+    )
+    revealed_at_cycle: Optional[int] = None
+    classified: bool = False
+    classified_by_team_id: Optional[int] = Field(
+        default=None, foreign_key="team.id"
+    )
+    eliminated: bool = False
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    game: Optional[Game] = Relationship(back_populates="clues")

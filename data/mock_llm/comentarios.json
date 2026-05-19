@@ -1,0 +1,28 @@
+{
+  "comentarios": {
+    "investigador_chefe": "Conhecido pela frieza e capacidade de focar mesmo sob pressão. Tem hábito de tomar café puro durante interrogatórios.",
+    "perito_criminal": "Meticuloso a ponto da obsessão. Colegas dizem que checa qualquer evidência três vezes antes de assinar laudo.",
+    "interrogador": "Carismático e paciente, faz amigos onde quer que vá. Tem talento pra escutar mais do que fala.",
+    "analista_ocorrencias": "Memorioso, sempre se lembra de detalhes esquecidos pelos outros. Mora sozinho há anos.",
+    "oficial_campo": "Atlético e impulsivo, gosta de estar onde a ação acontece. Não suporta papelada.",
+    "delegado": "Político por necessidade, sabe quando pressionar e quando recuar. Tem mandato firme há cinco anos.",
+    "detetive_principal": "Solitário por escolha, prefere trabalhar sozinho a delegar. Lê muito noir.",
+    "ex_policial": "Veterano com cicatrizes visíveis e invisíveis. Saiu da corporação em circunstâncias controversas.",
+    "especialista_fraude": "Encantado por números e padrões. Consegue ver fraude onde ninguém mais vê.",
+    "infiltrador": "Discreto até o extremo, raramente fala de si. Ninguém sabe ao certo onde mora.",
+    "analista_comportamental": "Observador agudo, lê expressões com facilidade. Faz perguntas inesperadas.",
+    "especialista_vigilancia": "Disciplinado e quieto, gosta de rotinas previsíveis. Tem coleção de câmeras antigas.",
+    "editor_chefe": "Decisivo e ambicioso, vive entre prazos. Conhece todo mundo do meio.",
+    "reporter_campo": "Curioso e teimoso, vai a qualquer lugar atrás de uma história. Fala várias línguas.",
+    "checador_fatos": "Cético profissional, duvida até de sua própria sombra. Bom de bibliotecas.",
+    "fotojornalista": "Cinco anos cobrindo zonas de conflito. Quieto, prefere a câmera às palavras.",
+    "diretor_investigativo": "Estrategista, pensa em pautas como xadrez. Tem agenda lotada e voz baixa.",
+    "colunista": "Opinativo e bem-relacionado, frequenta as rodas certas. Adora um boato bem fundamentado.",
+    "coordenador": "Frio na superfície, leal no fundo. Gerencia equipes sem precisar elevar a voz.",
+    "hacker": "Brilhante e excêntrico, vive em horários invertidos. Coleciona moedas raras.",
+    "criptografo": "Reservado, prefere papel a tela quando pensa. Resolve criptografias por hobby nos fins de semana.",
+    "engenheiro_social": "Encantador profissional, faz amigos em minutos. Lê pessoas como livro aberto.",
+    "analista_metadados": "Paciente e detalhista, encontra padrões em ruído. Tem três monitores no escritório.",
+    "invasor_sistema": "Audacioso, gosta de quebrar coisas para ver como funcionam. Tem fama de durona."
+  }
+}
