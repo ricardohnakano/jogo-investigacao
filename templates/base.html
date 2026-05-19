@@ -6,13 +6,16 @@
     <title>{% block title %}Jogo Investigativo{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+    <script src="https://unpkg.com/htmx-ext-ws@2.0.1"></script>
 </head>
-<body>
+<body {% block body_attrs %}{% endblock %}>
     <header>
         <h1>{% block header %}Jogo Investigativo{% endblock %}</h1>
+        {% block header_extras %}{% endblock %}
     </header>
     <main>
         {% block content %}{% endblock %}
     </main>
+    <div id="reload-trigger"></div>
 </body>
 </html>
