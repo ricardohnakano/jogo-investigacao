@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Jogo Investigativo — Lobby{% endblock %}
+{% block content %}
+<section class="lobby">
+    <div class="card">
+        <h2>Novo Jogo</h2>
+        <p>Inicia uma nova partida. Este dispositivo será o host.</p>
+        <form action="/games" method="post">
+            <button type="submit" class="btn-primary">Criar Jogo</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Continuar Jogo</h2>
+        <p>Use o ID exibido no host.</p>
+        <form onsubmit="event.preventDefault(); const id = this.game_id.value.trim().toUpperCase(); if(id) window.location.href='/jogo/' + id;">
+            <input type="text" name="game_id" placeholder="ID (ex: AB12CD)" maxlength="6" required autocapitalize="characters">
+            <button type="submit" class="btn-secondary">Entrar</button>
+        </form>
+    </div>
+
+    <div class="card qr-card">
+        <h2>Jogadores: conectem o celular</h2>
+        <p>Aponte a câmera para o QR code.</p>
+        <img src="{{ qr_data_url }}" alt="QR code" class="qr">
+        <p class="muted"><code>{{ local_url }}</code></p>
+    </div>
+</section>
+{% endblock %}
