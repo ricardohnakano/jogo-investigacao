@@ -1,0 +1,131 @@
+:root {
+    --bg: #0f1419;
+    --surface: #1a212b;
+    --primary: #f0a020;
+    --secondary: #4a90e2;
+    --text: #e6e6e6;
+    --muted: #888;
+    --border: #2a3441;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+}
+
+header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+main {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.lobby {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+}
+
+.card h2 {
+    margin-top: 0;
+}
+
+button {
+    cursor: pointer;
+    padding: 0.6rem 1.2rem;
+    border-radius: 0.3rem;
+    border: none;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: #000;
+}
+
+.btn-secondary {
+    background: var(--secondary);
+    color: #fff;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 0.6rem;
+    margin-bottom: 0.6rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    color: var(--text);
+    font-size: 1rem;
+}
+
+.qr-card img.qr {
+    display: block;
+    margin: 1rem auto;
+    width: 200px;
+    height: 200px;
+    background: white;
+    padding: 0.5rem;
+    border-radius: 0.3rem;
+}
+
+.muted {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+code {
+    background: var(--bg);
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.2rem;
+    font-size: 0.9rem;
+}
+
+.game-header {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    padding: 1rem;
+    background: var(--surface);
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.host-badge {
+    background: var(--primary);
+    color: #000;
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-left: auto;
+}
+
+.placeholder {
+    text-align: center;
+    padding: 3rem;
+    background: var(--surface);
+    border-radius: 0.5rem;
+}
