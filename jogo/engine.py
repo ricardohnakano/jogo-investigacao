@@ -7,6 +7,7 @@ from jogo.db.models import Game, GameStatus, Player, Team
 from jogo.db.session import engine as db_engine
 from jogo.game_data import (
     COUNTDOWN_SECONDS,
+    GENERATION_MIN_SECONDS,
     MIN_PLAYERS_PER_TEAM,
     MIN_TEAMS,
     MIN_TOTAL_PLAYERS,
@@ -69,6 +70,8 @@ def derive_status(session: Session, game: Game) -> GameStatus:
         return GameStatus.PLAYING
     if game.countdown_started_at:
         return GameStatus.COUNTDOWN
+    if game.generation_started_at:
+        return GameStatus.GENERATING
     if game.paused_at:
         return GameStatus.PAUSED
 
@@ -95,6 +98,19 @@ def sync_status(session: Session, game: Game) -> bool:
     return False
 
 
+def start_generation(session: Session, game: Game) -> None:
+    game.generation_started_at = _utcnow()
+    game.status = GameStatus.GENERATING
+    session.add(game)
+    session.commit()
+
+
+def finish_generation(session: Session, game: Game) -> None:
+    game.generation_finished_at = _utcnow()
+    session.add(game)
+    session.commit()
+
+
 def start_countdown(session: Session, game: Game) -> None:
     game.countdown_started_at = _utcnow()
     game.status = GameStatus.COUNTDOWN
@@ -117,6 +133,16 @@ def countdown_remaining_seconds(game: Game) -> int:
 
 
 _countdown_tasks: dict[str, asyncio.Task] = {}
+_generation_tasks: dict[str, asyncio.Task] = {}
+
+
+def _on_task_done(task: asyncio.Task) -> None:
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc:
+        import traceback
+        traceback.print_exception(type(exc), exc, exc.__traceback__)
 
 
 async def _run_countdown(game_id: str) -> None:
@@ -147,13 +173,38 @@ async def _run_countdown(game_id: str) -> None:
             await asyncio.sleep(1)
 
 
-def _on_task_done(task: asyncio.Task) -> None:
-    if task.cancelled():
-        return
-    exc = task.exception()
-    if exc:
-        import traceback
-        traceback.print_exception(type(exc), exc, exc.__traceback__)
+async def _run_generation(game_id: str) -> None:
+    from jogo import crime
+    from jogo.realtime import manager
+
+    with Session(db_engine) as session:
+        game = session.get(Game, game_id)
+        if not game or game.status != GameStatus.GENERATING:
+            return
+
+        crime.generate(session, game)
+        problems = crime.validate_generated(session, game.id)
+        if problems:
+            raise RuntimeError(f"Geração inválida: {problems}")
+
+        finish_generation(session, game)
+
+        elapsed = (_utcnow() - game.generation_started_at).total_seconds()
+        remaining = max(0.0, GENERATION_MIN_SECONDS - elapsed)
+        if remaining > 0:
+            await asyncio.sleep(remaining)
+
+        session.refresh(game)
+        start_countdown(session, game)
+
+    reload_html = (
+        '<div id="reload-trigger" hx-swap-oob="outerHTML">'
+        '<script>setTimeout(()=>location.reload(),200)</script>'
+        '</div>'
+    )
+    await manager.broadcast(game_id, reload_html)
+
+    schedule_countdown_task(game_id)
 
 
 def schedule_countdown_task(game_id: str) -> None:
@@ -164,3 +215,13 @@ def schedule_countdown_task(game_id: str) -> None:
     task = asyncio.create_task(_run_countdown(game_id))
     task.add_done_callback(_on_task_done)
     _countdown_tasks[game_id] = task
+
+
+def schedule_generation_task(game_id: str) -> None:
+    """Inicia (ou substitui) a task de geração do crime em background."""
+    existing = _generation_tasks.get(game_id)
+    if existing and not existing.done():
+        return
+    task = asyncio.create_task(_run_generation(game_id))
+    task.add_done_callback(_on_task_done)
+    _generation_tasks[game_id] = task

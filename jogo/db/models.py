@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from jogo.game_data import Equipe, Profissao
+from jogo.game_data import Equipe, FuncaoEspecial, Profissao
 
 
 class GameStatus(str, Enum):
@@ -15,6 +15,7 @@ class GameStatus(str, Enum):
     TEAM_SELECTION = "team_selection"
     CHAR_SELECTION = "char_selection"
     READY_CHECK = "ready_check"
+    GENERATING = "generating"
     COUNTDOWN = "countdown"
     PLAYING = "playing"
     PAUSED = "paused"
@@ -46,12 +47,19 @@ class Game(SQLModel, table=True):
     host_token: str = Field(default_factory=_gen_host_token, index=True)
     created_at: datetime = Field(default_factory=_utcnow)
     paused_at: Optional[datetime] = None
+    generation_started_at: Optional[datetime] = None
+    generation_finished_at: Optional[datetime] = None
     countdown_started_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     current_cycle: int = 0
 
+    local: Optional[str] = None
+    objeto: Optional[str] = None
+    motivacional: Optional[str] = None
+
     teams: list["Team"] = Relationship(back_populates="game")
+    characters: list["Character"] = Relationship(back_populates="game")
 
 
 class Team(SQLModel, table=True):
@@ -75,3 +83,30 @@ class Player(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_utcnow)
 
     team: Optional[Team] = Relationship(back_populates="players")
+
+
+class Character(SQLModel, table=True):
+    """Representa uma das 24 fichas civis (humanos + NPCs)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    game_id: str = Field(foreign_key="game.id", index=True)
+    profissao: Profissao
+    equipe: Equipe
+    is_npc: bool = True
+    player_id: Optional[str] = Field(
+        default=None, foreign_key="player.id", index=True
+    )
+
+    nome: str
+    sobrenome: str
+    idade: int
+    genero: str
+    avatar_seed: str
+    personalidade: str
+
+    funcao_especial: FuncaoEspecial = Field(default=FuncaoEspecial.NENHUMA)
+    eliminated: bool = False
+    action_used: bool = False
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    game: Optional[Game] = Relationship(back_populates="characters")

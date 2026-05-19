@@ -190,8 +190,26 @@ def profissao_acao(p: Profissao) -> str:
     return PROFISSAO_INFO[p][1]
 
 
+EQUIPE_DE_PROFISSAO: dict[Profissao, Equipe] = {
+    p: equipe
+    for equipe, profs in PROFISSOES_POR_EQUIPE.items()
+    for p in profs
+}
+
+
+class FuncaoEspecial(str, Enum):
+    NENHUMA = "nenhuma"
+    CRIMINOSO = "criminoso"
+    VITIMA = "vitima"
+    CUMPLICE = "cumplice"
+
+
+PROB_CUMPLICE_1 = 0.80
+PROB_CUMPLICE_2 = 0.60
+
 MIN_PLAYERS_PER_TEAM = 3
 MIN_TEAMS = 2
 MIN_TOTAL_PLAYERS = 6
 MAX_TOTAL_PLAYERS = 24
 COUNTDOWN_SECONDS = 10
+GENERATION_MIN_SECONDS = 2

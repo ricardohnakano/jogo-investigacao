@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Jogo {{ game.id }} — Preparando o crime{% endblock %}
+{% block body_attrs %}hx-ext="ws" ws-connect="/ws/{{ game.id }}"{% endblock %}
+{% block header_extras %}
+<div class="header-meta">
+    <span>Jogo: <strong>{{ game.id }}</strong></span>
+    {% if team is defined %}<span>{{ EQUIPE_LABEL[team.equipe] }}</span>{% endif %}
+</div>
+{% endblock %}
+{% block content %}
+<section class="generating">
+    <div class="card center">
+        <h2>🔍 Preparando o crime…</h2>
+        <p>Estamos montando os personagens, escolhendo o local, o objeto e o motivacional.</p>
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="muted">Logo o jogo começa.</p>
+    </div>
+</section>
+{% endblock %}
