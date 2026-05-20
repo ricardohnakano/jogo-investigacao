@@ -5,9 +5,17 @@ from enum import Enum
 from typing import Optional
 from uuid import uuid4
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
-from jogo.game_data import ClueCategory, ClueVeracity, Equipe, FuncaoEspecial, Profissao
+from jogo.game_data import (
+    ActionKind,
+    ClueCategory,
+    ClueVeracity,
+    Equipe,
+    FuncaoEspecial,
+    Profissao,
+)
 
 
 class GameStatus(str, Enum):
@@ -53,12 +61,17 @@ class Game(SQLModel, table=True):
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     current_cycle: int = 0
+    cycle_started_at: Optional[datetime] = None
 
     local: Optional[str] = None
     objeto: Optional[str] = None
     motivacional: Optional[str] = None
     historia_completa: Optional[str] = None
     image_ready: bool = False
+    image_stage_bonus: int = 0
+
+    accomplices_count_revealed: bool = False
+    winning_team_id: Optional[int] = Field(default=None, foreign_key="team.id")
 
     teams: list["Team"] = Relationship(back_populates="game")
     characters: list["Character"] = Relationship(back_populates="game")
@@ -70,6 +83,14 @@ class Team(SQLModel, table=True):
     game_id: str = Field(foreign_key="game.id", index=True)
     equipe: Equipe
     created_at: datetime = Field(default_factory=_utcnow)
+
+    classification_blocked_until_cycle: Optional[int] = None
+    accusation_used: bool = False
+    accusation_correct: Optional[bool] = None
+    accused_criminoso_character_id: Optional[int] = Field(
+        default=None, foreign_key="character.id"
+    )
+    side_quest_hard_locked: bool = False
 
     game: Optional[Game] = Relationship(back_populates="teams")
     players: list["Player"] = Relationship(back_populates="team")
@@ -133,7 +154,41 @@ class Clue(SQLModel, table=True):
     classified_by_team_id: Optional[int] = Field(
         default=None, foreign_key="team.id"
     )
+    classified_at_cycle: Optional[int] = None
+    classified_veracity: Optional[ClueVeracity] = None
     eliminated: bool = False
+    eliminated_at_cycle: Optional[int] = None
+    stolen_by_team_id: Optional[int] = Field(
+        default=None, foreign_key="team.id"
+    )
     created_at: datetime = Field(default_factory=_utcnow)
 
     game: Optional[Game] = Relationship(back_populates="clues")
+
+
+class Action(SQLModel, table=True):
+    """Registro de cada ação executada por um personagem em um ciclo."""
+
+    __table_args__ = (
+        UniqueConstraint(
+            "game_id", "character_id", "cycle", name="uq_action_per_cycle"
+        ),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    game_id: str = Field(foreign_key="game.id", index=True)
+    cycle: int
+    character_id: int = Field(foreign_key="character.id", index=True)
+    team_id: int = Field(foreign_key="team.id", index=True)
+    kind: ActionKind
+    target_character_id: Optional[int] = Field(
+        default=None, foreign_key="character.id"
+    )
+    target_clue_id: Optional[int] = Field(
+        default=None, foreign_key="clue.id"
+    )
+    target_team_id: Optional[int] = Field(
+        default=None, foreign_key="team.id"
+    )
+    result_json: Optional[str] = None
+    created_at: datetime = Field(default_factory=_utcnow)

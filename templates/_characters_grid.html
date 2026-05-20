@@ -1,0 +1,9 @@
+<div id="characters-grid" hx-swap-oob="outerHTML" class="characters-grid">
+    {% for c in characters %}
+    <div class="char-card {% if c.eliminated %}eliminated{% endif %}">
+        <span class="char-name">{{ c.nome }} {{ c.sobrenome }}</span>
+        <span class="char-prof">{{ PROFISSAO_INFO[c.profissao][0] }}</span>
+        {% if c.eliminated %}<span class="char-tag">Eliminado</span>{% endif %}
+    </div>
+    {% endfor %}
+</div>
