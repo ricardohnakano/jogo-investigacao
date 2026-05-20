@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
-from jogo.api import pages, ws
+from jogo.api import pages, side_quests as sq_api, ws
 from jogo.config import settings
 from jogo.db.models import Game, GameStatus
 from jogo.db.session import engine as db_engine, init_db
@@ -27,4 +27,5 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(pages.router)
+app.include_router(sq_api.router)
 app.include_router(ws.router)

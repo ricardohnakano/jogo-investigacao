@@ -237,9 +237,15 @@ def _handle_block(
 def _handle_lock_side_quests(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
-    team.side_quest_hard_locked = True
-    session.add(team)
-    return {"ok": True}
+    target_team_id = body.get("target_team_id")
+    if not target_team_id:
+        return {"ok": False, "error": "target_team_id obrigatório"}
+    target_team = session.get(Team, int(target_team_id))
+    if not target_team or target_team.game_id != game.id or target_team.id == team.id:
+        return {"ok": False, "error": "Time alvo inválido"}
+    target_team.side_quest_hard_count = 3
+    session.add(target_team)
+    return {"ok": True, "locked_team_id": target_team.id}
 
 
 def _handle_physical(
@@ -314,6 +320,11 @@ def execute_action(
         return {"ok": False, "error": "Personagem eliminado não pode agir"}
     if character.action_used:
         return {"ok": False, "error": "Ação já utilizada neste ciclo"}
+    if (
+        character.blocked_until_cycle is not None
+        and character.blocked_until_cycle >= game.current_cycle
+    ):
+        return {"ok": False, "error": "Personagem bloqueado por side quest adversário"}
 
     kind = PROFISSAO_TO_ACTION.get(character.profissao)
     if kind is None:
