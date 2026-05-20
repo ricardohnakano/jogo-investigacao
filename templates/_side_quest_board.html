@@ -1,0 +1,171 @@
+{% set kind = sq.kind.value %}
+{% set status = sq.status.value %}
+
+<div class="sq-board">
+    <div class="sq-board-header">
+        <strong>{{ QUEST_KIND_LABEL[kind] }}</strong>
+        <span class="sq-badge sq-diff--{{ sq.difficulty.value }}">{{ QUEST_DIFF_LABEL[sq.difficulty.value] }}</span>
+        <span class="sq-badge sq-status--{{ status }}">{{ QUEST_STATUS_LABEL[status] }}</span>
+    </div>
+
+    {% if error %}
+    <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {# ================================================================ #}
+    {# Estado final (completed / expired) #}
+    {# ================================================================ #}
+    {% if status == 'completed' %}
+    <p class="sq-result sq-result--won">Parabéns! Quest concluída.</p>
+    {% if reward_result %}
+    <p class="muted">
+        {% if reward_result.kind == 'reveal_extra_clue' and reward_result.clue_id %}
+        Uma pista extra foi revelada.
+        {% elif reward_result.kind == 'block_opponent_character' and reward_result.character_id %}
+        Um personagem adversário foi bloqueado no próximo ciclo.
+        {% else %}
+        Nenhum efeito adicional disponível.
+        {% endif %}
+    </p>
+    {% endif %}
+
+    {% elif status == 'expired' %}
+    <p class="sq-result sq-result--lost">Tentativas esgotadas. Quest expirada.</p>
+
+    {# ================================================================ #}
+    {# Em andamento — Mastermind #}
+    {# ================================================================ #}
+    {% elif kind == 'mastermind' %}
+    <p class="muted">Adivinhe o código de {{ state.digits }} dígitos (1–6). Touros = dígito certo no lugar certo. Vacas = dígito certo no lugar errado.</p>
+    <p class="muted">Tentativas: {{ state.attempts | length }}/{{ state.max_attempts }}</p>
+
+    {% if state.attempts %}
+    <div class="sq-mastermind-history">
+        {% for a in state.attempts %}
+        <div class="sq-mm-row">
+            <span class="sq-mm-guess">{{ a.guess }}</span>
+            <span class="sq-mm-feedback">{{ a.bulls }}🐂 {{ a.cows }}🐄</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if last_result and last_result.won %}
+    <p class="sq-result sq-result--won">Código correto!</p>
+    {% elif last_result and last_result.lost %}
+    <p class="sq-result sq-result--lost">Sem mais tentativas.</p>
+    {% else %}
+    <form hx-post="/jogo/{{ game.id }}/side-quests/{{ sq.id }}/submit"
+          hx-target="#sq-board" hx-swap="innerHTML" class="sq-form">
+        <input type="text" name="guess" maxlength="{{ state.digits }}" minlength="{{ state.digits }}"
+               pattern="[1-6]+" placeholder="{{ '?'*state.digits }}"
+               class="sq-input" autocomplete="off" required>
+        <button type="submit" class="btn">Tentar</button>
+    </form>
+    {% endif %}
+
+    {# ================================================================ #}
+    {# Em andamento — Maior ou Menor #}
+    {# ================================================================ #}
+    {% elif kind == 'higher_lower' %}
+    <p class="muted">Número secreto de 1 a {{ state.range_max }}. Tentativas: {{ state.attempts | length }}/{{ state.max_attempts }}</p>
+
+    {% if state.attempts %}
+    <div class="sq-hl-history">
+        {% for a in state.attempts %}
+        <div class="sq-hl-row">
+            <span class="sq-hl-guess">{{ a.guess }}</span>
+            <span class="sq-hl-result {% if a.result == 'acertou' %}sq-result--won{% endif %}">
+                {% if a.result == 'maior' %}↑ Maior
+                {% elif a.result == 'menor' %}↓ Menor
+                {% else %}✓ Acertou!{% endif %}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if last_result and last_result.won %}
+    <p class="sq-result sq-result--won">Número correto!</p>
+    {% elif last_result and last_result.lost %}
+    <p class="sq-result sq-result--lost">Sem mais tentativas.</p>
+    {% else %}
+    <form hx-post="/jogo/{{ game.id }}/side-quests/{{ sq.id }}/submit"
+          hx-target="#sq-board" hx-swap="innerHTML" class="sq-form">
+        <input type="number" name="guess" min="1" max="{{ state.range_max }}"
+               class="sq-input" placeholder="1–{{ state.range_max }}" required>
+        <button type="submit" class="btn">Tentar</button>
+    </form>
+    {% endif %}
+
+    {# ================================================================ #}
+    {# Em andamento — Labirinto #}
+    {# ================================================================ #}
+    {% elif kind == 'labyrinth' %}
+    {% set pos_r = state.pos[0] %}
+    {% set pos_c = state.pos[1] %}
+    {% set goal_r = state.goal[0] %}
+    {% set goal_c = state.goal[1] %}
+    {% set size = state.size %}
+
+    <p class="muted">Navegue até a saída (★). Use as setas abaixo.</p>
+
+    <div class="sq-labyrinth">
+        {% for row_i in range(state.grid | length) %}
+        <div class="sq-lab-row">
+            {% for col_i in range(state.grid[row_i] | length) %}
+            {% set cell = state.grid[row_i][col_i] %}
+            {% set is_room = (row_i % 2 == 1) and (col_i % 2 == 1) %}
+            {% set room_r = (row_i - 1) // 2 %}
+            {% set room_c = (col_i - 1) // 2 %}
+            {% if cell == 1 %}
+            <span class="sq-lab-wall"></span>
+            {% elif is_room and room_r == pos_r and room_c == pos_c %}
+            <span class="sq-lab-player">●</span>
+            {% elif is_room and room_r == goal_r and room_c == goal_c %}
+            <span class="sq-lab-goal">★</span>
+            {% elif is_room %}
+            <span class="sq-lab-open"></span>
+            {% else %}
+            <span class="sq-lab-passage"></span>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if last_result and last_result.won %}
+    <p class="sq-result sq-result--won">Saída encontrada!</p>
+    {% else %}
+    <div class="sq-lab-controls">
+        <form hx-post="/jogo/{{ game.id }}/side-quests/{{ sq.id }}/submit"
+              hx-target="#sq-board" hx-swap="innerHTML">
+            <button type="submit" name="move" value="up" class="btn btn-dir">↑</button>
+        </form>
+        <div class="sq-lab-lr">
+            <form hx-post="/jogo/{{ game.id }}/side-quests/{{ sq.id }}/submit"
+                  hx-target="#sq-board" hx-swap="innerHTML">
+                <button type="submit" name="move" value="left" class="btn btn-dir">←</button>
+            </form>
+            <form hx-post="/jogo/{{ game.id }}/side-quests/{{ sq.id }}/submit"
+                  hx-target="#sq-board" hx-swap="innerHTML">
+                <button type="submit" name="move" value="down" class="btn btn-dir">↓</button>
+            </form>
+            <form hx-post="/jogo/{{ game.id }}/side-quests/{{ sq.id }}/submit"
+                  hx-target="#sq-board" hx-swap="innerHTML">
+                <button type="submit" name="move" value="right" class="btn btn-dir">→</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+    {# Botão abandonar (só enquanto em andamento e não finalizado) #}
+    {% if status == 'in_progress' and not (last_result and (last_result.won or last_result.lost)) %}
+    <form hx-post="/jogo/{{ game.id }}/side-quests/{{ sq.id }}/release"
+          hx-target="#sq-panel" hx-swap="innerHTML" style="margin-top:0.75rem">
+        <button type="submit" class="btn btn-sm btn-outline">Abandonar</button>
+    </form>
+    {% endif %}
+</div>

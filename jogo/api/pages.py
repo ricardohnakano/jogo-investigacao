@@ -2,7 +2,6 @@ from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 
 from jogo import actions as actions_mod
@@ -22,12 +21,10 @@ from jogo.game_data import (
     TOTAL_CYCLES,
 )
 from jogo.realtime import manager
+from jogo.templates import templates
 from jogo.utils.qr import generate_qr_data_url, get_local_ip
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
-templates.env.globals["EQUIPE_LABEL"] = EQUIPE_LABEL
-templates.env.globals["PROFISSAO_INFO"] = PROFISSAO_INFO
 
 
 def _local_url(path: str = "") -> str:

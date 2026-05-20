@@ -279,6 +279,8 @@ async def _run_cycle(game_id: str) -> None:
             session.refresh(game)
             clues_mod.assign_ficha_civil_targets(session, game_id)
             clues_mod.reveal_for_cycle(session, game_id, 1)
+            from jogo import side_quests as sq_mod
+            sq_mod.generate_for_cycle(session, game_id, 1)
 
     await manager.broadcast(game_id, _RELOAD_HTML)
 
@@ -308,7 +310,7 @@ async def _run_cycle(game_id: str) -> None:
             game.current_cycle += 1
             game.cycle_started_at = _utcnow()
 
-            # Reset ações dos personagens
+            # Reset ações dos personagens + limpa bloqueios de side quest expirados
             chars = list(
                 session.exec(
                     select(Character).where(Character.game_id == game_id)
@@ -316,6 +318,11 @@ async def _run_cycle(game_id: str) -> None:
             )
             for c in chars:
                 c.action_used = False
+                if (
+                    c.blocked_until_cycle is not None
+                    and c.blocked_until_cycle < game.current_cycle
+                ):
+                    c.blocked_until_cycle = None
                 session.add(c)
 
             # Limpa bloqueios de classificação expirados
@@ -334,6 +341,8 @@ async def _run_cycle(game_id: str) -> None:
             session.commit()
             session.refresh(game)
             clues_mod.reveal_for_cycle(session, game_id, game.current_cycle)
+            from jogo import side_quests as sq_mod
+            sq_mod.generate_for_cycle(session, game_id, game.current_cycle)
 
         await manager.broadcast(game_id, _RELOAD_HTML)
 

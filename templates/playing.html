@@ -143,7 +143,7 @@
             <button type="submit" class="btn">Classificar</button>
         </form>
 
-        {% elif action_kind in ('steal_eliminated_clues', 'block_opponent_classify') %}
+        {% elif action_kind in ('steal_eliminated_clues', 'block_opponent_classify', 'lock_side_quests_hard') %}
         <form method="post" action="/jogo/{{ game.id }}/acao">
             <label>Time alvo:</label>
             <select name="target_team_id" required>
@@ -177,6 +177,20 @@
     {% elif player is defined and player and character and character.eliminated %}
     <div id="action-panel" class="card action-panel">
         <p class="muted">Seu personagem foi eliminado.</p>
+    </div>
+    {% endif %}
+
+    {# Side quests #}
+    {% if team is defined and team %}
+    <div id="sq-panel" class="card sq-panel">
+        <h3>Side Quests — Ciclo {{ game.current_cycle }}</h3>
+        <div hx-get="/jogo/{{ game.id }}/side-quests"
+             hx-trigger="load"
+             hx-target="#side-quests-list"
+             hx-swap="outerHTML">
+            <div id="side-quests-list"><p class="muted">Carregando…</p></div>
+        </div>
+        <div id="sq-board" class="sq-board-placeholder"></div>
     </div>
     {% endif %}
 

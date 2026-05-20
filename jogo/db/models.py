@@ -15,6 +15,10 @@ from jogo.game_data import (
     Equipe,
     FuncaoEspecial,
     Profissao,
+    SideQuestDifficulty,
+    SideQuestKind,
+    SideQuestReward,
+    SideQuestStatus,
 )
 
 
@@ -90,7 +94,7 @@ class Team(SQLModel, table=True):
     accused_criminoso_character_id: Optional[int] = Field(
         default=None, foreign_key="character.id"
     )
-    side_quest_hard_locked: bool = False
+    side_quest_hard_count: int = 0
 
     game: Optional[Game] = Relationship(back_populates="teams")
     players: list["Player"] = Relationship(back_populates="team")
@@ -133,6 +137,7 @@ class Character(SQLModel, table=True):
     funcao_especial: FuncaoEspecial = Field(default=FuncaoEspecial.NENHUMA)
     eliminated: bool = False
     action_used: bool = False
+    blocked_until_cycle: Optional[int] = None
     created_at: datetime = Field(default_factory=_utcnow)
 
     game: Optional[Game] = Relationship(back_populates="characters")
@@ -191,4 +196,25 @@ class Action(SQLModel, table=True):
         default=None, foreign_key="team.id"
     )
     result_json: Optional[str] = None
+    created_at: datetime = Field(default_factory=_utcnow)
+
+
+class SideQuest(SQLModel, table=True):
+    """Mini-jogo disponível a cada ciclo para cada equipe."""
+
+    __tablename__ = "sidequest"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    game_id: str = Field(foreign_key="game.id", index=True)
+    team_id: int = Field(foreign_key="team.id", index=True)
+    cycle: int
+    kind: SideQuestKind
+    difficulty: SideQuestDifficulty
+    status: SideQuestStatus = Field(default=SideQuestStatus.PENDING)
+    reward: SideQuestReward
+    state_json: str = Field(default="{}")
+
+    locked_by_player_id: Optional[str] = Field(default=None, foreign_key="player.id")
+    locked_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=_utcnow)

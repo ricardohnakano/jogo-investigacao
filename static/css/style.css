@@ -358,6 +358,170 @@ details summary {
     to { transform: rotate(360deg); }
 }
 
+/* ======================================================================
+   Side quests
+   ====================================================================== */
+
+.sq-panel { margin-top: 1.5rem; }
+.sq-panel h3 { margin-top: 0; color: var(--primary); }
+
+/* Quest list */
+.sq-list {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.sq-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    min-width: 180px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.sq-card--completed { border-color: var(--success); opacity: 0.75; }
+.sq-card--expired { opacity: 0.5; }
+
+.sq-card-header { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.sq-kind { font-weight: 600; font-size: 0.95rem; }
+
+.sq-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.sq-diff--normal { background: var(--secondary); color: #fff; }
+.sq-diff--hard { background: var(--danger); color: #fff; }
+
+.sq-status--pending { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+.sq-status--in_progress { background: var(--primary); color: #000; }
+.sq-status--completed { background: var(--success); color: #000; }
+.sq-status--expired { background: var(--border); color: var(--muted); }
+
+.sq-reward { font-size: 0.82rem; color: var(--muted); }
+.sq-done { color: var(--success); font-weight: 600; }
+
+/* Board */
+.sq-board-placeholder { min-height: 2rem; }
+
+.sq-board {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 1rem 1.25rem;
+    margin-top: 0.75rem;
+}
+
+.sq-board-header {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.sq-result { font-weight: 700; margin: 0.5rem 0; }
+.sq-result--won { color: var(--success); }
+.sq-result--lost { color: var(--danger); }
+
+.sq-form { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem; }
+
+.sq-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 0.35rem;
+    padding: 0.4rem 0.6rem;
+    font-size: 1.1rem;
+    width: 8rem;
+    letter-spacing: 0.15em;
+    text-align: center;
+}
+
+/* Mastermind */
+.sq-mastermind-history { margin-bottom: 0.5rem; }
+.sq-mm-row {
+    display: flex;
+    gap: 1rem;
+    padding: 0.2rem 0;
+    border-bottom: 1px solid var(--border);
+    font-family: monospace;
+    font-size: 1rem;
+}
+.sq-mm-guess { letter-spacing: 0.2em; color: var(--primary); }
+.sq-mm-feedback { color: var(--muted); }
+
+/* Higher / Lower */
+.sq-hl-history { margin-bottom: 0.5rem; }
+.sq-hl-row {
+    display: flex;
+    gap: 1rem;
+    padding: 0.2rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.95rem;
+}
+.sq-hl-guess { color: var(--primary); font-weight: 600; min-width: 3rem; }
+.sq-hl-result { color: var(--muted); }
+
+/* Labyrinth */
+.sq-labyrinth {
+    display: inline-flex;
+    flex-direction: column;
+    border: 2px solid var(--border);
+    margin: 0.5rem 0;
+    line-height: 1;
+}
+
+.sq-lab-row { display: flex; }
+
+.sq-lab-wall,
+.sq-lab-open,
+.sq-lab-passage,
+.sq-lab-player,
+.sq-lab-goal {
+    width: 1.4rem;
+    height: 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+.sq-lab-wall { background: var(--surface-2); }
+.sq-lab-open { background: var(--bg); }
+.sq-lab-passage { background: var(--bg); }
+.sq-lab-player { background: var(--bg); color: var(--secondary); font-size: 0.9rem; }
+.sq-lab-goal { background: var(--bg); color: var(--primary); font-size: 0.9rem; }
+
+.sq-lab-controls { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; margin-top: 0.5rem; }
+.sq-lab-lr { display: flex; gap: 0.3rem; }
+
+.btn-dir {
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+}
+.btn-outline:hover { border-color: var(--muted); color: var(--text); }
+
 /* Mobile */
 @media (max-width: 700px) {
     main { padding: 1rem; }

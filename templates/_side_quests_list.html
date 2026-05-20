@@ -1,0 +1,39 @@
+<div id="side-quests-list" class="sq-list">
+    {% if quests %}
+        {% for sq in quests %}
+        <div class="sq-card sq-card--{{ sq.status.value }} sq-card--{{ sq.difficulty.value }}">
+            <div class="sq-card-header">
+                <span class="sq-kind">{{ QUEST_KIND_LABEL[sq.kind.value] }}</span>
+                <span class="sq-badge sq-diff--{{ sq.difficulty.value }}">{{ QUEST_DIFF_LABEL[sq.difficulty.value] }}</span>
+                <span class="sq-badge sq-status--{{ sq.status.value }}">{{ QUEST_STATUS_LABEL[sq.status.value] }}</span>
+            </div>
+            <div class="sq-reward">
+                Recompensa: <strong>{{ QUEST_REWARD_LABEL[sq.reward.value] }}</strong>
+            </div>
+            {% if sq.status.value == 'pending' %}
+            <form hx-post="/jogo/{{ game.id }}/side-quests/{{ sq.id }}/claim"
+                  hx-target="#sq-board"
+                  hx-swap="innerHTML">
+                <button type="submit" class="btn btn-sm">Jogar</button>
+            </form>
+            {% elif sq.status.value == 'in_progress' %}
+            {% if player and sq.locked_by_player_id == player.id %}
+            <form hx-post="/jogo/{{ game.id }}/side-quests/{{ sq.id }}/claim"
+                  hx-target="#sq-board"
+                  hx-swap="innerHTML">
+                <button type="submit" class="btn btn-sm">Retomar</button>
+            </form>
+            {% else %}
+            <span class="muted">Bloqueado por outro jogador</span>
+            {% endif %}
+            {% elif sq.status.value == 'completed' %}
+            <span class="sq-done">✓ Concluído</span>
+            {% else %}
+            <span class="muted">Expirado</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="muted">Nenhuma side quest disponível para este ciclo.</p>
+    {% endif %}
+</div>

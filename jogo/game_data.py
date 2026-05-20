@@ -257,6 +257,50 @@ COUNTDOWN_SECONDS = 10
 GENERATION_MIN_SECONDS = 2
 LLM_MAX_RETRIES = 3
 
+# ---------------------------------------------------------------------------
+# Side quests
+# ---------------------------------------------------------------------------
+
+
+class SideQuestKind(str, Enum):
+    MASTERMIND = "mastermind"
+    LABYRINTH = "labyrinth"
+    HIGHER_LOWER = "higher_lower"
+
+
+class SideQuestStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+
+
+class SideQuestDifficulty(str, Enum):
+    NORMAL = "normal"
+    HARD = "hard"
+
+
+class SideQuestReward(str, Enum):
+    REVEAL_EXTRA_CLUE = "reveal_extra_clue"
+    BLOCK_OPPONENT_CHARACTER = "block_opponent_character"
+
+
+SIDE_QUESTS_PER_CYCLE = 3
+ACTION_LOCK_TIMEOUT_SECONDS = 60
+
+MASTERMIND_DIGITS_NORMAL = 4
+MASTERMIND_DIGITS_HARD = 5
+MASTERMIND_MAX_ATTEMPTS_NORMAL = 8
+MASTERMIND_MAX_ATTEMPTS_HARD = 10
+
+HIGHER_LOWER_RANGE_NORMAL = 50
+HIGHER_LOWER_RANGE_HARD = 100
+HIGHER_LOWER_MAX_ATTEMPTS_NORMAL = 7
+HIGHER_LOWER_MAX_ATTEMPTS_HARD = 10
+
+LABYRINTH_SIZE_NORMAL = 4
+LABYRINTH_SIZE_HARD = 5
+
 
 class ActionKind(str, Enum):
     ELIMINATE_CHARACTER = "eliminate_character"
