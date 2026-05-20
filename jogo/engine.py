@@ -3,14 +3,22 @@ from datetime import datetime, timezone
 
 from sqlmodel import Session, select
 
-from jogo.db.models import Game, GameStatus, Player, Team
+from jogo.db.models import Character, Game, GameStatus, Player, Team
 from jogo.db.session import engine as db_engine
 from jogo.game_data import (
     COUNTDOWN_SECONDS,
+    CYCLE_DURATION_SECONDS,
     GENERATION_MIN_SECONDS,
     MIN_PLAYERS_PER_TEAM,
     MIN_TEAMS,
     MIN_TOTAL_PLAYERS,
+    TOTAL_CYCLES,
+)
+
+_RELOAD_HTML = (
+    '<div id="reload-trigger" hx-swap-oob="outerHTML">'
+    "<script>setTimeout(()=>location.reload(),200)</script>"
+    "</div>"
 )
 
 
@@ -39,7 +47,6 @@ def all_players(session: Session, game_id: str) -> list[Player]:
 
 
 def can_start(session: Session, game_id: str) -> bool:
-    """Verifica se condições mínimas pra iniciar o jogo foram atendidas."""
     teams = get_teams(session, game_id)
     if len(teams) < MIN_TEAMS:
         return False
@@ -63,7 +70,6 @@ def can_start(session: Session, game_id: str) -> bool:
 
 
 def derive_status(session: Session, game: Game) -> GameStatus:
-    """Computa o status do jogo a partir do estado do banco."""
     if game.finished_at:
         return GameStatus.FINISHED
     if game.started_at:
@@ -87,7 +93,6 @@ def derive_status(session: Session, game: Game) -> GameStatus:
 
 
 def sync_status(session: Session, game: Game) -> bool:
-    """Atualiza game.status se diferente do derivado. Retorna True se mudou."""
     new_status = derive_status(session, game)
     if game.status != new_status:
         game.status = new_status
@@ -125,6 +130,16 @@ def start_game(session: Session, game: Game) -> None:
     session.commit()
 
 
+def finish_game(
+    session: Session, game: Game, winner_team_id: int | None
+) -> None:
+    game.finished_at = _utcnow()
+    game.status = GameStatus.FINISHED
+    game.winning_team_id = winner_team_id
+    session.add(game)
+    session.commit()
+
+
 def countdown_remaining_seconds(game: Game) -> int:
     if not game.countdown_started_at:
         return COUNTDOWN_SECONDS
@@ -132,8 +147,27 @@ def countdown_remaining_seconds(game: Game) -> int:
     return max(0, COUNTDOWN_SECONDS - int(elapsed))
 
 
+def cycle_remaining_seconds(game: Game) -> int:
+    if not game.cycle_started_at:
+        return CYCLE_DURATION_SECONDS
+    elapsed = (_utcnow() - game.cycle_started_at).total_seconds()
+    return max(0, CYCLE_DURATION_SECONDS - int(elapsed))
+
+
+def current_image_stage(game: Game) -> int:
+    """Estágio da imagem (1–6) baseado no ciclo atual + bônus do Fotojornalista."""
+    from jogo.game_data import IMAGE_STAGES
+    stage = min(game.current_cycle + game.image_stage_bonus, len(IMAGE_STAGES))
+    return max(1, stage)
+
+
+# ---------------------------------------------------------------------------
+# Background tasks
+# ---------------------------------------------------------------------------
+
 _countdown_tasks: dict[str, asyncio.Task] = {}
 _generation_tasks: dict[str, asyncio.Task] = {}
+_cycle_tasks: dict[str, asyncio.Task] = {}
 
 
 def _on_task_done(task: asyncio.Task) -> None:
@@ -158,17 +192,13 @@ async def _run_countdown(game_id: str) -> None:
             html = (
                 f'<div id="countdown" hx-swap-oob="outerHTML">'
                 f'<div class="countdown-big">{remaining}</div>'
-                f'</div>'
+                f"</div>"
             )
             await manager.broadcast(game_id, html)
             if remaining <= 0:
                 start_game(session, game)
-                reload_html = (
-                    '<div id="reload-trigger" hx-swap-oob="outerHTML">'
-                    '<script>setTimeout(()=>location.reload(),200)</script>'
-                    '</div>'
-                )
-                await manager.broadcast(game_id, reload_html)
+                schedule_cycle_task(game_id)
+                await manager.broadcast(game_id, _RELOAD_HTML)
                 return
             await asyncio.sleep(1)
 
@@ -178,7 +208,7 @@ async def _broadcast_step(game_id: str, label: str) -> None:
     html = (
         f'<div id="generating-step" hx-swap-oob="outerHTML">'
         f'<p class="muted">{label}</p>'
-        f'</div>'
+        f"</div>"
     )
     await manager.broadcast(game_id, html)
 
@@ -198,7 +228,7 @@ async def _run_generation(game_id: str) -> None:
         if crime_problems:
             raise RuntimeError(f"Sorteio inválido: {crime_problems}")
 
-        await _broadcast_step(game_id, "Construindo a história, dicas e linha do tempo (pode levar até 1 minuto)…")
+        await _broadcast_step(game_id, "Construindo história, dicas e linha do tempo…")
         await asyncio.to_thread(narrative.generate_all, session, game)
         narrative_problems = narrative.validate_persisted(session, game.id)
         if narrative_problems:
@@ -227,18 +257,88 @@ async def _run_generation(game_id: str) -> None:
         session.refresh(game)
         start_countdown(session, game)
 
-    reload_html = (
-        '<div id="reload-trigger" hx-swap-oob="outerHTML">'
-        '<script>setTimeout(()=>location.reload(),200)</script>'
-        '</div>'
-    )
-    await manager.broadcast(game_id, reload_html)
-
+    await manager.broadcast(game_id, _RELOAD_HTML)
     schedule_countdown_task(game_id)
 
 
+async def _run_cycle(game_id: str) -> None:
+    """Loop principal de ciclos. Roda do ciclo 1 ao TOTAL_CYCLES."""
+    from jogo import clues as clues_mod
+    from jogo.realtime import manager
+
+    # Bootstrap do ciclo 1
+    with Session(db_engine) as session:
+        game = session.get(Game, game_id)
+        if not game or game.status != GameStatus.PLAYING:
+            return
+        if game.current_cycle == 0:
+            game.current_cycle = 1
+            game.cycle_started_at = _utcnow()
+            session.add(game)
+            session.commit()
+            session.refresh(game)
+            clues_mod.assign_ficha_civil_targets(session, game_id)
+            clues_mod.reveal_for_cycle(session, game_id, 1)
+
+    await manager.broadcast(game_id, _RELOAD_HTML)
+
+    while True:
+        # Aguarda o fim do ciclo atual (poll a cada 2s)
+        while True:
+            await asyncio.sleep(2)
+            with Session(db_engine) as session:
+                game = session.get(Game, game_id)
+                if not game or game.status != GameStatus.PLAYING:
+                    return
+                remaining = cycle_remaining_seconds(game)
+            if remaining <= 0:
+                break
+
+        # Fim de ciclo: avança ou encerra
+        with Session(db_engine) as session:
+            game = session.get(Game, game_id)
+            if not game or game.status != GameStatus.PLAYING:
+                return
+
+            if game.current_cycle >= TOTAL_CYCLES:
+                finish_game(session, game, winner_team_id=None)
+                await manager.broadcast(game_id, _RELOAD_HTML)
+                return
+
+            game.current_cycle += 1
+            game.cycle_started_at = _utcnow()
+
+            # Reset ações dos personagens
+            chars = list(
+                session.exec(
+                    select(Character).where(Character.game_id == game_id)
+                ).all()
+            )
+            for c in chars:
+                c.action_used = False
+                session.add(c)
+
+            # Limpa bloqueios de classificação expirados
+            teams = list(
+                session.exec(select(Team).where(Team.game_id == game_id)).all()
+            )
+            for t in teams:
+                if (
+                    t.classification_blocked_until_cycle is not None
+                    and t.classification_blocked_until_cycle <= game.current_cycle
+                ):
+                    t.classification_blocked_until_cycle = None
+                    session.add(t)
+
+            session.add(game)
+            session.commit()
+            session.refresh(game)
+            clues_mod.reveal_for_cycle(session, game_id, game.current_cycle)
+
+        await manager.broadcast(game_id, _RELOAD_HTML)
+
+
 def schedule_countdown_task(game_id: str) -> None:
-    """Inicia (ou substitui) a task de countdown em background."""
     existing = _countdown_tasks.get(game_id)
     if existing and not existing.done():
         return
@@ -248,10 +348,18 @@ def schedule_countdown_task(game_id: str) -> None:
 
 
 def schedule_generation_task(game_id: str) -> None:
-    """Inicia (ou substitui) a task de geração do crime em background."""
     existing = _generation_tasks.get(game_id)
     if existing and not existing.done():
         return
     task = asyncio.create_task(_run_generation(game_id))
     task.add_done_callback(_on_task_done)
     _generation_tasks[game_id] = task
+
+
+def schedule_cycle_task(game_id: str) -> None:
+    existing = _cycle_tasks.get(game_id)
+    if existing and not existing.done():
+        return
+    task = asyncio.create_task(_run_cycle(game_id))
+    task.add_done_callback(_on_task_done)
+    _cycle_tasks[game_id] = task

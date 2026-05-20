@@ -1,18 +1,25 @@
+from typing import Optional
+
 from fastapi import APIRouter, Cookie, Depends, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from sqlmodel import Session
+from sqlmodel import Session, select
 
+from jogo import actions as actions_mod
+from jogo import clues as clues_mod
 from jogo import engine
 from jogo.config import settings
-from jogo.db.models import Game, GameStatus, Player, Team
+from jogo.db.models import Character, Clue, Game, GameStatus, Player, Team
 from jogo.db.session import get_session
 from jogo.game_data import (
     EQUIPE_LABEL,
     PROFISSAO_INFO,
     PROFISSOES_POR_EQUIPE,
+    ClueVeracity,
     Equipe,
+    FuncaoEspecial,
     Profissao,
+    TOTAL_CYCLES,
 )
 from jogo.realtime import manager
 from jogo.utils.qr import generate_qr_data_url, get_local_ip
@@ -86,9 +93,8 @@ def game_entry(
             request, "generating.html", {"game": game}
         )
     if game.status in (GameStatus.PLAYING, GameStatus.FINISHED):
-        return templates.TemplateResponse(
-            request, "playing.html", {"game": game}
-        )
+        ctx = _playing_context(session, game)
+        return templates.TemplateResponse(request, "playing.html", ctx)
 
     return templates.TemplateResponse(
         request,
@@ -148,9 +154,8 @@ def team_room(
             request, "generating.html", {"game": game, "team": team}
         )
     if game.status in (GameStatus.PLAYING, GameStatus.FINISHED):
-        return templates.TemplateResponse(
-            request, "playing.html", {"game": game, "team": team}
-        )
+        ctx = _playing_context(session, game, team=team)
+        return templates.TemplateResponse(request, "playing.html", ctx)
 
     join_url = _local_url(f"/entrar/{game.id}/sala/{team.id}")
     return templates.TemplateResponse(
@@ -236,11 +241,8 @@ def player_page(
             {"game": game, "team": team, "player": player},
         )
     if game.status in (GameStatus.PLAYING, GameStatus.FINISHED):
-        return templates.TemplateResponse(
-            request,
-            "playing.html",
-            {"game": game, "team": team, "player": player},
-        )
+        ctx = _playing_context(session, game, team=team, player=player)
+        return templates.TemplateResponse(request, "playing.html", ctx)
 
     teammates = engine.get_players(session, team.id)
     taken_profs = {
@@ -328,6 +330,228 @@ async def toggle_ready(
 
     await _broadcast_update(session, game)
     return RedirectResponse(url="/jogador", status_code=303)
+
+
+def _get_character_for_player(
+    session: Session, player: Player
+) -> Optional[Character]:
+    if not player.profissao:
+        return None
+    return session.exec(
+        select(Character).where(
+            Character.game_id == session.get(Team, player.team_id).game_id,
+            Character.profissao == player.profissao,
+        )
+    ).first()
+
+
+def _playing_context(
+    session: Session,
+    game: Game,
+    team: Optional[Team] = None,
+    player: Optional[Player] = None,
+) -> dict:
+    characters = list(
+        session.exec(
+            select(Character).where(Character.game_id == game.id).order_by(Character.id)
+        ).all()
+    )
+    clues_by_cat = clues_mod.visible_clues_by_category(session, game.id)
+    all_teams = engine.get_teams(session, game.id)
+
+    character: Optional[Character] = None
+    action_kind: Optional[str] = None
+    action_targets: dict = {}
+
+    if player and team:
+        character = _get_character_for_player(session, player)
+        if character and not character.action_used and not character.eliminated:
+            kind = actions_mod.action_kind_for(character.profissao)
+            if kind:
+                action_kind = kind.value
+                ak = actions_mod.ActionKind
+                if kind == ak.ELIMINATE_CHARACTER:
+                    action_targets["target_characters"] = [
+                        c for c in characters if not c.eliminated and c.id != character.id
+                    ]
+                elif kind == ak.INTERROGATE:
+                    action_targets["target_characters"] = [
+                        c for c in characters if not c.eliminated
+                    ]
+                elif kind == ak.CLASSIFY_CLUE:
+                    cat = actions_mod.category_for(character.profissao)
+                    action_targets["classifiable_clues"] = [
+                        c for c in clues_by_cat.get(cat, []) if not c.classified
+                    ]
+                    action_targets["classify_category"] = cat.value if cat else ""
+                elif kind in (ak.STEAL_ELIMINATED_CLUES, ak.BLOCK_OPPONENT_CLASSIFY):
+                    action_targets["opponent_teams"] = [
+                        t for t in all_teams if t.id != team.id
+                    ]
+
+    from jogo.game_data import IMAGE_STAGES
+
+    return {
+        "game": game,
+        "team": team,
+        "player": player,
+        "character": character,
+        "characters": characters,
+        "clues_objeto_local": clues_by_cat.get(
+            clues_mod.ClueCategory.OBJETO_LOCAL, []
+        ),
+        "clues_linha_tempo": clues_by_cat.get(
+            clues_mod.ClueCategory.LINHA_TEMPO, []
+        ),
+        "clues_ficha_civil": clues_by_cat.get(
+            clues_mod.ClueCategory.FICHA_CIVIL, []
+        ),
+        "image_stage": engine.current_image_stage(game),
+        "remaining_seconds": engine.cycle_remaining_seconds(game),
+        "cycles_total": TOTAL_CYCLES,
+        "action_kind": action_kind,
+        "all_teams": all_teams,
+        **action_targets,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Gameplay endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/jogo/{game_id}/acao")
+async def perform_action(
+    game_id: str,
+    target_character_id: Optional[int] = Form(default=None),
+    target_clue_id: Optional[int] = Form(default=None),
+    target_team_id: Optional[int] = Form(default=None),
+    classified_veracity: Optional[str] = Form(default=None),
+    player_id: str = Cookie(default=""),
+    session: Session = Depends(get_session),
+):
+    if not player_id:
+        raise HTTPException(status_code=401, detail="Sem sessão de jogador")
+
+    game = session.get(Game, game_id.upper())
+    player = session.get(Player, player_id)
+    if not game or not player:
+        raise HTTPException(status_code=404)
+
+    team = session.get(Team, player.team_id)
+    if not team or team.game_id != game.id:
+        raise HTTPException(status_code=403)
+
+    character = _get_character_for_player(session, player)
+    if not character:
+        raise HTTPException(status_code=400, detail="Personagem não encontrado")
+
+    body = {
+        "target_character_id": target_character_id,
+        "target_clue_id": target_clue_id,
+        "target_team_id": target_team_id,
+        "classified_veracity": classified_veracity,
+    }
+    result = actions_mod.execute_action(session, game, character, team, body)
+
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Erro"))
+
+    # Broadcast eliminação para toda a sala; outros efeitos via reload de ciclo
+    kind = result.get("kind", "")
+    if kind == "eliminate_character":
+        session.refresh(game)
+        chars = list(
+            session.exec(
+                select(Character).where(Character.game_id == game.id).order_by(Character.id)
+            ).all()
+        )
+        html = templates.get_template("_characters_grid.html").render(
+            {"characters": chars, "PROFISSAO_INFO": PROFISSAO_INFO}
+        )
+        await manager.broadcast(game.id, html)
+
+    return RedirectResponse(url="/jogador", status_code=303)
+
+
+@router.post("/jogo/{game_id}/acusacao")
+async def make_accusation(
+    game_id: str,
+    accused_character_id: int = Form(...),
+    player_id: str = Cookie(default=""),
+    session: Session = Depends(get_session),
+):
+    if not player_id:
+        raise HTTPException(status_code=401)
+
+    game = session.get(Game, game_id.upper())
+    player = session.get(Player, player_id)
+    if not game or not player or game.status != GameStatus.PLAYING:
+        raise HTTPException(status_code=404)
+
+    team = session.get(Team, player.team_id)
+    if not team or team.game_id != game.id:
+        raise HTTPException(status_code=403)
+
+    if team.accusation_used:
+        raise HTTPException(status_code=409, detail="Equipe já fez sua acusação")
+
+    accused = session.get(Character, accused_character_id)
+    if not accused or accused.game_id != game.id:
+        raise HTTPException(status_code=404, detail="Personagem não encontrado")
+
+    correct = accused.funcao_especial == FuncaoEspecial.CRIMINOSO
+    team.accusation_used = True
+    team.accusation_correct = correct
+    team.accused_criminoso_character_id = accused.id
+    session.add(team)
+    session.commit()
+
+    if correct:
+        engine.finish_game(session, game, winner_team_id=team.id)
+        await manager.broadcast(game.id, (
+            '<div id="reload-trigger" hx-swap-oob="outerHTML">'
+            "<script>setTimeout(()=>location.reload(),200)</script>"
+            "</div>"
+        ))
+
+    return RedirectResponse(url="/jogador", status_code=303)
+
+
+@router.get("/jogo/{game_id}/personagens", response_class=HTMLResponse)
+def personagens(
+    game_id: str,
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    game = session.get(Game, game_id.upper())
+    if not game:
+        raise HTTPException(status_code=404)
+    characters = list(
+        session.exec(
+            select(Character).where(Character.game_id == game.id).order_by(Character.id)
+        ).all()
+    )
+    return templates.TemplateResponse(
+        request,
+        "personagens.html",
+        {"game": game, "characters": characters},
+    )
+
+
+@router.get("/jogo/{game_id}/ciclo/info")
+def ciclo_info(
+    game_id: str,
+    session: Session = Depends(get_session),
+):
+    game = session.get(Game, game_id.upper())
+    if not game:
+        raise HTTPException(status_code=404)
+    return {
+        "current_cycle": game.current_cycle,
+        "remaining_seconds": engine.cycle_remaining_seconds(game),
+        "image_stage": engine.current_image_stage(game),
+        "status": game.status.value,
+    }
 
 
 @router.get("/jogo/{game_id}/image/{stage}")

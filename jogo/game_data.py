@@ -246,6 +246,9 @@ EXTRA_FALSE_OBJETO_LOCAL = 15
 
 IMAGE_STAGES = [0.02, 0.06, 0.14, 0.25, 0.39, 0.56]
 
+TOTAL_CYCLES = 6
+CYCLE_DURATION_SECONDS = 600  # 10 min; use 60 para testes rápidos
+
 MIN_PLAYERS_PER_TEAM = 3
 MIN_TEAMS = 2
 MIN_TOTAL_PLAYERS = 6
@@ -253,3 +256,17 @@ MAX_TOTAL_PLAYERS = 24
 COUNTDOWN_SECONDS = 10
 GENERATION_MIN_SECONDS = 2
 LLM_MAX_RETRIES = 3
+
+
+class ActionKind(str, Enum):
+    ELIMINATE_CHARACTER = "eliminate_character"
+    REVEAL_TRUE_CLUE = "reveal_true_clue"
+    INTERROGATE = "interrogate"
+    CLASSIFY_CLUE = "classify_clue"
+    STEAL_ELIMINATED_CLUES = "steal_eliminated_clues"
+    BLOCK_OPPONENT_CLASSIFY = "block_opponent_classify"
+    LOCK_SIDE_QUESTS_HARD = "lock_side_quests_hard"
+    PHYSICAL_ROOM_ACCESS = "physical_room_access"
+    PHYSICAL_DETAIN = "physical_detain"
+    REVEAL_ACCOMPLICES_COUNT = "reveal_accomplices_count"
+    IMPROVE_IMAGE = "improve_image"

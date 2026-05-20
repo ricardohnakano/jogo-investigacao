@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Personagens — Jogo {{ game.id }}{% endblock %}
+{% block content %}
+<section>
+    <h2>Fichas dos Personagens</h2>
+    <div class="characters-grid">
+        {% for c in characters %}
+        <div class="char-card {% if c.eliminated %}eliminated{% endif %}">
+            <span class="char-name">{{ c.nome }} {{ c.sobrenome }}</span>
+            <span class="char-prof">{{ PROFISSAO_INFO[c.profissao][0] }}</span>
+            <span class="char-age">{{ c.idade }} anos</span>
+            {% if c.comentario %}
+            <span class="char-comment">{{ c.comentario }}</span>
+            {% endif %}
+            {% if c.eliminated %}<span class="char-tag">Eliminado</span>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

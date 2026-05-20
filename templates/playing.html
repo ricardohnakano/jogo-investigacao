@@ -1,17 +1,230 @@
 {% extends "base.html" %}
-{% block title %}Jogo {{ game.id }} — em andamento{% endblock %}
+{% block title %}Jogo {{ game.id }} — Ciclo {{ game.current_cycle }}/{{ cycles_total }}{% endblock %}
+{% block body_attrs %}hx-ext="ws" ws-connect="/ws/{{ game.id }}"{% endblock %}
 {% block header_extras %}
 <div class="header-meta">
     <span>Jogo: <strong>{{ game.id }}</strong></span>
-    {% if team is defined %}<span>{{ EQUIPE_LABEL[team.equipe] }}</span>{% endif %}
+    {% if team is defined and team %}<span>{{ EQUIPE_LABEL[team.equipe] }}</span>{% endif %}
+    <div id="cycle-info">
+        <span>Ciclo <strong>{{ game.current_cycle }}</strong>/{{ cycles_total }}</span>
+        {% if game.status.value == 'playing' %}
+        <span id="cycle-timer" data-remaining="{{ remaining_seconds }}">{{ remaining_seconds }}s</span>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
+
 {% block content %}
-<section class="playing">
-    <div class="card center">
-        <h2>🎮 Jogo iniciado!</h2>
-        <p>O loop principal do jogo (ciclos de 10min, ações, pistas) é o próximo PR.</p>
-        <p class="muted">Status atual: <code>{{ game.status.value }}</code></p>
-    </div>
+{% if game.status.value == 'finished' %}
+<section class="card center">
+    <h2>Jogo encerrado</h2>
+    {% if game.winning_team_id %}
+    <p>Uma equipe acertou o criminoso!</p>
+    {% else %}
+    <p>Tempo esgotado. Nenhuma equipe identificou o criminoso.</p>
+    {% endif %}
 </section>
+{% else %}
+
+<section class="playing-layout">
+
+    {# Imagem da cena do crime #}
+    <div id="image-current" class="crime-image-box">
+        {% if game.image_ready %}
+        <img src="/jogo/{{ game.id }}/image/{{ image_stage }}"
+             alt="Cena do crime — estágio {{ image_stage }}"
+             class="crime-image">
+        <p class="muted">Estágio {{ image_stage }}/6</p>
+        {% else %}
+        <p class="muted">Imagem indisponível</p>
+        {% endif %}
+    </div>
+
+    {# Grid de personagens #}
+    {% include "_characters_grid.html" %}
+
+    {# Pistas reveladas #}
+    <div class="clues-section">
+        <div class="clues-col">
+            <h3>Objeto / Local</h3>
+            <div id="clues-objeto-local">
+                {% for clue in clues_objeto_local %}
+                <div class="clue-card {% if clue.classified %}classified{% endif %} {% if clue.eliminated %}eliminated{% endif %}">
+                    <span class="clue-content">{{ clue.conteudo }}</span>
+                    {% if clue.classified %}
+                    <span class="clue-tag">{{ clue.classified_veracity.value if clue.classified_veracity else '?' }}</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="muted">Aguardando próximo ciclo…</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="clues-col">
+            <h3>Linha do Tempo</h3>
+            <div id="clues-linha-tempo">
+                {% for clue in clues_linha_tempo %}
+                <div class="clue-card {% if clue.classified %}classified{% endif %} {% if clue.eliminated %}eliminated{% endif %}">
+                    <span class="clue-content">{{ clue.conteudo }}</span>
+                    {% if clue.classified %}
+                    <span class="clue-tag">{{ clue.classified_veracity.value if clue.classified_veracity else '?' }}</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="muted">Aguardando próximo ciclo…</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="clues-col">
+            <h3>Fichas Civis</h3>
+            <div id="clues-ficha-civil">
+                {% for clue in clues_ficha_civil %}
+                <div class="clue-card {% if clue.classified %}classified{% endif %}">
+                    <span class="clue-content">{{ clue.conteudo }}</span>
+                    {% if clue.target_character_id %}
+                    <span class="clue-tag muted">via interrogatório</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="muted">Reveladas por interrogatório.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# Painel de ação (só para jogador com ação disponível) #}
+    {% if player is defined and player and character and not character.action_used and not character.eliminated %}
+    <div id="action-panel" class="card action-panel">
+        <h3>Sua ação: {{ PROFISSAO_INFO[character.profissao][1] }}</h3>
+
+        {% if action_kind == 'eliminate_character' %}
+        <form method="post" action="/jogo/{{ game.id }}/acao">
+            <label>Eliminar personagem:</label>
+            <select name="target_character_id" required>
+                <option value="">— escolha —</option>
+                {% for c in target_characters %}
+                <option value="{{ c.id }}">{{ c.nome }} {{ c.sobrenome }} ({{ PROFISSAO_INFO[c.profissao][0] }})</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-danger">Eliminar</button>
+        </form>
+
+        {% elif action_kind == 'interrogate' %}
+        <form method="post" action="/jogo/{{ game.id }}/acao">
+            <label>Interrogar personagem:</label>
+            <select name="target_character_id" required>
+                <option value="">— escolha —</option>
+                {% for c in target_characters %}
+                <option value="{{ c.id }}">{{ c.nome }} {{ c.sobrenome }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn">Interrogar</button>
+        </form>
+
+        {% elif action_kind == 'classify_clue' %}
+        <form method="post" action="/jogo/{{ game.id }}/acao">
+            <label>Classificar pista ({{ classify_category }}):</label>
+            <select name="target_clue_id" required>
+                <option value="">— escolha a pista —</option>
+                {% for clue in classifiable_clues %}
+                <option value="{{ clue.id }}">{{ clue.conteudo[:60] }}…</option>
+                {% endfor %}
+            </select>
+            <label>Como:</label>
+            <select name="classified_veracity" required>
+                <option value="">— veredicto —</option>
+                <option value="enganosa">Enganosa</option>
+                <option value="falsa">Falsa</option>
+                <option value="inutil">Inútil</option>
+                <option value="verdadeira">Verdadeira</option>
+            </select>
+            <button type="submit" class="btn">Classificar</button>
+        </form>
+
+        {% elif action_kind in ('steal_eliminated_clues', 'block_opponent_classify') %}
+        <form method="post" action="/jogo/{{ game.id }}/acao">
+            <label>Time alvo:</label>
+            <select name="target_team_id" required>
+                <option value="">— escolha —</option>
+                {% for t in opponent_teams %}
+                <option value="{{ t.id }}">{{ EQUIPE_LABEL[t.equipe] }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn">Executar</button>
+        </form>
+
+        {% elif action_kind in ('physical_room_access', 'physical_detain') %}
+        <form method="post" action="/jogo/{{ game.id }}/acao">
+            <p class="muted">Ação física — execute pessoalmente e registre aqui.</p>
+            <button type="submit" class="btn">Registrar uso</button>
+        </form>
+
+        {% else %}
+        <form method="post" action="/jogo/{{ game.id }}/acao">
+            <p class="muted">Confirme o uso da sua ação.</p>
+            <button type="submit" class="btn">Usar ação</button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% elif player is defined and player and character and character.action_used %}
+    <div id="action-panel" class="card action-panel">
+        <p class="muted">Ação utilizada neste ciclo.</p>
+    </div>
+
+    {% elif player is defined and player and character and character.eliminated %}
+    <div id="action-panel" class="card action-panel">
+        <p class="muted">Seu personagem foi eliminado.</p>
+    </div>
+    {% endif %}
+
+    {# Acusação final #}
+    {% if team is defined and team and not team.accusation_used %}
+    <details class="card accusation-section">
+        <summary>Fazer acusação final (1 tentativa por equipe)</summary>
+        <form method="post" action="/jogo/{{ game.id }}/acusacao"
+              onsubmit="return confirm('Tem certeza? Esta é sua única tentativa!')">
+            <label>Apontar criminoso:</label>
+            <select name="accused_character_id" required>
+                <option value="">— escolha —</option>
+                {% for c in characters %}
+                {% if not c.eliminated %}
+                <option value="{{ c.id }}">{{ c.nome }} {{ c.sobrenome }} ({{ PROFISSAO_INFO[c.profissao][0] }})</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-danger">Acusar</button>
+        </form>
+    </details>
+    {% elif team is defined and team and team.accusation_used %}
+    <div class="card">
+        <p>Acusação feita.
+        {% if team.accusation_correct %}
+        <strong>Correto!</strong>
+        {% elif team.accusation_correct == false %}
+        Errada — continue investigando.
+        {% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+</section>
+
+<script>
+(function () {
+    var el = document.getElementById('cycle-timer');
+    if (!el) return;
+    var r = parseInt(el.dataset.remaining, 10);
+    var iv = setInterval(function () {
+        r -= 1;
+        if (r < 0) { clearInterval(iv); el.textContent = '0:00'; return; }
+        var m = Math.floor(r / 60);
+        var s = r % 60;
+        el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from jogo.db.models import Game
+from jogo.db.models import Character, Game, Player, Team
 from jogo.db.session import get_session
 from jogo.realtime import manager
 
@@ -20,7 +20,15 @@ async def ws_game(
         await websocket.close(code=4404)
         return
 
-    await manager.connect(game_id, websocket)
+    # Identifica equipe via cookie player_id (None se for tela de host/equipe)
+    team_id: int | None = None
+    player_id = websocket.cookies.get("player_id", "")
+    if player_id:
+        player = session.get(Player, player_id)
+        if player:
+            team_id = player.team_id
+
+    await manager.connect(game_id, websocket, team_id=team_id)
     try:
         while True:
             await websocket.receive_text()
