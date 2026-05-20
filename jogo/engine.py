@@ -204,6 +204,19 @@ async def _run_generation(game_id: str) -> None:
         if narrative_problems:
             raise RuntimeError(f"Narrativa inválida: {narrative_problems}")
 
+        await _broadcast_step(game_id, "Gerando imagem da cena do crime…")
+        session.refresh(game)
+        from jogo import image as img_module
+        prompt = img_module.build_prompt(
+            game.local or "",
+            game.objeto or "",
+            game.historia_completa or "",
+        )
+        await asyncio.to_thread(img_module.generate_and_degrade, game.id, prompt)
+        game.image_ready = True
+        session.add(game)
+        session.commit()
+
         finish_generation(session, game)
 
         elapsed = (_utcnow() - game.generation_started_at).total_seconds()

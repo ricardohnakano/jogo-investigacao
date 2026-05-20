@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Cookie, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session
 
@@ -328,6 +328,32 @@ async def toggle_ready(
 
     await _broadcast_update(session, game)
     return RedirectResponse(url="/jogador", status_code=303)
+
+
+@router.get("/jogo/{game_id}/image/{stage}")
+def crime_image(
+    game_id: str,
+    stage: int,
+    session: Session = Depends(get_session),
+):
+    """Serve o estágio `stage` (1-6) da imagem degradada, ou o original (stage=0)."""
+    game = session.get(Game, game_id.upper())
+    if not game or not game.image_ready:
+        raise HTTPException(status_code=404, detail="Imagem não disponível")
+
+    from jogo import image as img_module
+
+    if stage == 0:
+        path = img_module.original_path(game.id)
+    elif 1 <= stage <= len(img_module.IMAGE_STAGES):
+        path = img_module.stage_path(game.id, stage)
+    else:
+        raise HTTPException(status_code=400, detail="Estágio inválido (use 0-6)")
+
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Arquivo de imagem não encontrado")
+
+    return FileResponse(path, media_type="image/png")
 
 
 @router.get("/health")

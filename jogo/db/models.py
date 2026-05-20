@@ -58,6 +58,7 @@ class Game(SQLModel, table=True):
     objeto: Optional[str] = None
     motivacional: Optional[str] = None
     historia_completa: Optional[str] = None
+    image_ready: bool = False
 
     teams: list["Team"] = Relationship(back_populates="game")
     characters: list["Character"] = Relationship(back_populates="game")
