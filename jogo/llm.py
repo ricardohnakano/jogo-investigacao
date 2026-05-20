@@ -23,7 +23,7 @@ from jogo.game_data import LLM_MAX_RETRIES
 
 T = TypeVar("T", bound=BaseModel)
 
-MODEL = "claude-opus-4-7"
+MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 16000
 
 MOCK_DIR = Path("data/mock_llm")

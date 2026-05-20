@@ -244,6 +244,7 @@ CLUE_COUNTS: dict[ClueCategory, dict[ClueVeracity, int]] = {
 
 EXTRA_FALSE_OBJETO_LOCAL = 15
 
+IMAGE_STAGES = [0.02, 0.06, 0.14, 0.25, 0.39, 0.56]
 
 MIN_PLAYERS_PER_TEAM = 3
 MIN_TEAMS = 2

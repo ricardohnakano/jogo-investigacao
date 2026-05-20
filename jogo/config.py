@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     data_dir: Path = Path("data")
     db_path: Path = Path("data/game.db")
     anthropic_api_key: str = ""
+    openai_api_key: str = ""
 
 
 settings = Settings()
