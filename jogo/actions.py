@@ -314,6 +314,8 @@ def execute_action(
     - character.action_used == False
     - character.eliminated == False
     """
+    if character.equipe != team.equipe:
+        return {"ok": False, "error": "Personagem não pertence ao seu time"}
     if game.status != GameStatus.PLAYING:
         return {"ok": False, "error": "Jogo não está em andamento"}
     if character.eliminated:
