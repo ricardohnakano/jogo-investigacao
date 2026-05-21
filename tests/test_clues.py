@@ -11,6 +11,7 @@ from jogo.game_data import (
 )
 from jogo import actions as actions_mod
 from jogo import clues as clues_mod
+from jogo.game_data import FuncaoEspecial
 
 
 class TestClueRevealSchedule:
@@ -228,3 +229,132 @@ class TestClassifiedVeracityElimination:
         assert not clue.eliminated
         assert clue.eliminated_at_cycle is None
         assert clue.classified_veracity == ClueVeracity.VERDADEIRA
+
+
+class TestFichaCivilTargetAssignment:
+    """Testes para distribuição de pistas de ficha civil."""
+
+    def test_ficha_civil_targets_assigned_to_characters(self, session: Session):
+        """assign_ficha_civil_targets() liga pistas a personagens."""
+        game = Game()
+        session.add(game)
+        session.commit()
+        session.refresh(game)
+
+        team = Team(game_id=game.id, equipe=Equipe.POLICIA)
+        session.add(team)
+        session.commit()
+
+        # Cria 24 personagens (4 equipes × 6 profissões)
+        chars = []
+        for equipe in Equipe:
+            for i, prof in enumerate(list(Profissao)[:6]):
+                char = Character(
+                    game_id=game.id,
+                    equipe=equipe,
+                    profissao=prof,
+                    nome=f"Char{len(chars)}",
+                    sobrenome="Test",
+                    idade=30,
+                    genero="M",
+                    avatar_seed=f"seed{len(chars)}",
+                    personalidade="normal",
+                    is_npc=True,
+                )
+                if len(chars) == 0:
+                    char.funcao_especial = FuncaoEspecial.CRIMINOSO
+                elif len(chars) == 1:
+                    char.funcao_especial = FuncaoEspecial.VITIMA
+                elif len(chars) in (2, 3):
+                    char.funcao_especial = FuncaoEspecial.CUMPLICE
+                chars.append(char)
+                session.add(char)
+        session.commit()
+
+        # Cria pistas de ficha civil (11 no total)
+        for i in range(11):
+            clue = Clue(
+                game_id=game.id,
+                categoria=ClueCategory.FICHA_CIVIL,
+                veracidade=ClueVeracity.VERDADEIRA,
+                conteudo=f"Ficha civil {i}",
+            )
+            session.add(clue)
+        session.commit()
+
+        # Executa assign_ficha_civil_targets
+        clues_mod.assign_ficha_civil_targets(session, game.id)
+
+        # Verifica que todas as pistas foram atribuídas
+        all_clues = list(
+            session.exec(
+                select(Clue).where(Clue.game_id == game.id)
+            ).all()
+        )
+        assigned_clues = [c for c in all_clues if c.target_character_id is not None]
+        assert len(assigned_clues) == 11
+        assert all(c.target_character_id is not None for c in all_clues)
+
+    def test_assign_ficha_civil_idempotent(self, session: Session):
+        """assign_ficha_civil_targets() é idempotente."""
+        game = Game()
+        session.add(game)
+        session.commit()
+        session.refresh(game)
+
+        team = Team(game_id=game.id, equipe=Equipe.POLICIA)
+        session.add(team)
+        session.commit()
+
+        # Cria alguns personagens
+        for i in range(6):
+            char = Character(
+                game_id=game.id,
+                equipe=Equipe.POLICIA,
+                profissao=Profissao.INVESTIGADOR_CHEFE,
+                nome=f"Char{i}",
+                sobrenome="Test",
+                idade=30,
+                genero="M",
+                avatar_seed=f"seed{i}",
+                personalidade="normal",
+                is_npc=True,
+            )
+            if i == 0:
+                char.funcao_especial = FuncaoEspecial.CRIMINOSO
+            elif i == 1:
+                char.funcao_especial = FuncaoEspecial.VITIMA
+            session.add(char)
+        session.commit()
+
+        # Cria pistas
+        for i in range(3):
+            clue = Clue(
+                game_id=game.id,
+                categoria=ClueCategory.FICHA_CIVIL,
+                veracidade=ClueVeracity.VERDADEIRA,
+                conteudo=f"Ficha {i}",
+            )
+            session.add(clue)
+        session.commit()
+
+        # Primeira chamada
+        clues_mod.assign_ficha_civil_targets(session, game.id)
+        first_run = list(
+            session.exec(
+                select(Clue).where(Clue.game_id == game.id)
+            ).all()
+        )
+        first_assignments = {c.id: c.target_character_id for c in first_run}
+
+        # Segunda chamada (deve ser no-op)
+        clues_mod.assign_ficha_civil_targets(session, game.id)
+        second_run = list(
+            session.exec(
+                select(Clue).where(Clue.game_id == game.id)
+            ).all()
+        )
+        second_assignments = {c.id: c.target_character_id for c in second_run}
+
+        # Verificar que as atribuições não mudaram
+        assert first_assignments == second_assignments

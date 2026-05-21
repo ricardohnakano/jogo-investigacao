@@ -42,7 +42,37 @@ pytest tests/ --cov=jogo --cov-report=html
 - `test_classified_non_verdadeira_eliminates_clue`: Verifica que pistas classificadas como NÃO-VERDADEIRA (FALSA, ENGANOSA, etc) são automaticamente eliminadas
 - `test_classified_verdadeira_not_eliminated`: Confirma que pistas classificadas como VERDADEIRA NÃO são eliminadas
 
-Total: 10 testes implementados (7 game logic + 3 clues)
+**TestFichaCivilTargetAssignment** (2 testes):
+- `test_ficha_civil_targets_assigned_to_characters`: Valida que `assign_ficha_civil_targets()` liga todas as pistas de ficha civil a personagens
+- `test_assign_ficha_civil_idempotent`: Confirma que a função é idempotente (segunda chamada não altera atribuições)
+
+### Testes de bloqueio de ações (test_actions_blocking.py)
+
+**TestBlockOpponentClassify** (3 testes):
+- `test_invasor_blocks_opponent_classification`: Invasor de Sistema bloqueia classificação do time adversário
+- `test_blocked_team_cannot_classify`: Time bloqueado não consegue executar ações de classificação
+- `test_classification_unblocked_after_cycle`: Bloqueio expira automaticamente após o ciclo especificado
+
+### Testes de side quests (test_side_quests.py)
+
+**TestHigherLowerQuest** (3 testes):
+- `test_higher_lower_correct_answer_wins`: Resposta correta resulta em vitória
+- `test_higher_lower_higher_hint`: Palpite menor que segredo retorna dica "maior"
+- `test_higher_lower_max_attempts_lost`: Exceder max_attempts resulta em perda
+
+**TestLabyrinthQuest** (3 testes):
+- `test_labyrinth_valid_move`: Movimento válido atualiza posição no labirinto
+- `test_labyrinth_invalid_move_direction`: Direção inválida retorna erro
+- `test_labyrinth_reach_goal_wins`: Alcançar meta resulta em vitória
+
+### Testes de fluxo completo (test_game_flow.py)
+
+**TestFullGameFlow** (2 testes):
+- `test_complete_game_flow_6_cycles`: Valida fluxo completo de jogo: lobby → ready → playing → 6 cycles → finished
+- `test_multiple_teams_can_act`: Múltiplos times podem executar ações no mesmo ciclo
+
+**Total: 23 testes implementados**
+- 7 game logic + 5 clues + 3 actions blocking + 6 side quests + 2 game flow
 
 ## Migrações (Alembic)
 
