@@ -71,8 +71,55 @@ pytest tests/ --cov=jogo --cov-report=html
 - `test_complete_game_flow_6_cycles`: Valida fluxo completo de jogo: lobby → ready → playing → 6 cycles → finished
 - `test_multiple_teams_can_act`: Múltiplos times podem executar ações no mesmo ciclo
 
-**Total: 23 testes implementados**
-- 7 game logic + 5 clues + 3 actions blocking + 6 side quests + 2 game flow
+### Testes de recompensas (test_rewards.py)
+
+**TestRewardApplication** (4 testes):
+- `test_reveal_extra_clue_reward`: Recompensa REVEAL_EXTRA_CLUE revela uma pista não-revelada
+- `test_block_opponent_character_reward`: Recompensa BLOCK_OPPONENT_CHARACTER bloqueia personagem adversário
+- `test_no_reward_on_loss`: Nenhuma recompensa quando side quest é perdida
+- `test_reward_distribution_ratio`: Recompensas seguem proporção 60/40
+
+### Testes de degradação de imagem (test_image.py)
+
+**TestImageDegradation** (7 testes):
+- `test_image_stages_progression`: IMAGE_STAGES contém 6 fatores de degradação
+- `test_image_stages_values`: Valores específicos [0.02, 0.06, 0.14, 0.25, 0.39, 0.56]
+- `test_current_image_stage_by_cycle`: Estágio progride de 1-6 por ciclo
+- `test_image_stage_bonus_increases_quality`: Bonus de imagem avança estágio
+- `test_image_stage_capped_at_max`: Estágio não excede máximo (6)
+- `test_image_stage_cycle_progression`: Ciclos 1-6 geram estágios 1-6
+- `test_image_stage_with_mid_cycle_bonus`: Bonus aplicado mid-game melhora qualidade
+
+### Testes de modo mock do LLM (test_llm_mock.py)
+
+**TestLLMMockMode** (5 testes):
+- `test_mock_mode_loads_fixtures`: JOGO_MOCK_LLM=1 carrega fixtures JSON
+- `test_mock_mode_enabled_with_env_var`: Modo mock habilitado via variável de ambiente
+- `test_mock_mode_disabled_without_env_var`: Sem variável, usa client real
+- `test_generate_respects_mock_mode`: generate() respeita modo mock
+- `test_mock_fixture_structure`: Fixtures JSON têm estrutura válida
+
+### Testes de pipeline narrativo (test_narrative.py)
+
+**TestNarrativePipeline** (7 testes):
+- `test_game_has_local_objeto_motivacional`: Game tem local, objeto, motivacional
+- `test_clue_categories_distributed`: Pistas distribuídas entre 3 categorias
+- `test_clue_veracity_distribution`: Pistas com diferentes níveis de veracidade
+- `test_characters_have_narrative_fields`: Personagens têm campos narrativos completos
+- `test_criminal_victim_accomplices_setup`: Criminoso, vítima e cúmplices identificados
+- `test_clue_target_character_reference`: Pista de ficha civil referencia personagem
+- `test_large_clue_set_generation`: Sistema gera 35+ pistas sem erro
+
+**Total: 46 testes implementados**
+- 7 game logic
+- 5 clues (distribuição/classificação)
+- 3 actions blocking
+- 6 side quests
+- 2 game flow
+- 4 rewards
+- 7 image degradation
+- 5 LLM mock mode
+- 7 narrative pipeline
 
 ## Migrações (Alembic)
 
