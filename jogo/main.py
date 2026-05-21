@@ -13,14 +13,18 @@ from jogo.db.session import engine as db_engine, init_db
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    # Rehidrata tasks de ciclo para partidas em andamento (resiliência a restart)
     from jogo import engine as game_engine
     with Session(db_engine) as session:
-        active = session.exec(
+        playing = session.exec(
             select(Game).where(Game.status == GameStatus.PLAYING)
         ).all()
-        for game in active:
+        for game in playing:
             game_engine.schedule_cycle_task(game.id)
+        generating = session.exec(
+            select(Game).where(Game.status == GameStatus.GENERATING)
+        ).all()
+        for game in generating:
+            game_engine.schedule_generation_task(game.id)
     yield
 
 

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Resultado — Jogo {{ game.id }}{% endblock %}
+
+{% block content %}
+<section class="result">
+
+    {# Banner #}
+    <div class="result-banner card center">
+        {% if winner_team %}
+        <h1>Crime resolvido!</h1>
+        <p>{{ EQUIPE_LABEL[winner_team.equipe] }} identificou o criminoso.</p>
+        {% else %}
+        <h1>Tempo esgotado</h1>
+        <p>Nenhuma equipe conseguiu identificar o criminoso a tempo.</p>
+        {% endif %}
+    </div>
+
+    {# Personagens-chave #}
+    {% if key_characters %}
+    <div class="result-key-chars card">
+        <h2>Personagens-chave</h2>
+        <div class="key-chars-grid">
+            {% for c in key_characters %}
+            <div class="key-char-card {{ c.funcao_especial.value }}">
+                <span class="key-char-role">{{ funcao_label[c.funcao_especial] }}</span>
+                <span class="key-char-name">{{ c.nome }} {{ c.sobrenome }}</span>
+                <span class="key-char-prof">{{ PROFISSAO_INFO[c.profissao][0] }}</span>
+                <span class="key-char-team">{{ EQUIPE_LABEL[c.equipe] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# História do crime #}
+    {% if game.historia_completa %}
+    <div class="result-story card">
+        <h2>História do crime</h2>
+        <p class="story-text">{{ game.historia_completa }}</p>
+    </div>
+    {% endif %}
+
+    {# Todas as pistas #}
+    {% if all_clues %}
+    <div class="result-clues card">
+        <h2>Todas as pistas reveladas</h2>
+        <div class="table-wrap">
+        <table class="result-table">
+            <thead>
+                <tr>
+                    <th>Pista</th>
+                    <th>Categoria</th>
+                    <th>Veracidade real</th>
+                    <th>Classificada como</th>
+                    <th>Por equipe</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for clue in all_clues %}
+                <tr>
+                    <td>{{ clue.conteudo }}</td>
+                    <td class="muted">{{ categoria_label[clue.categoria] }}</td>
+                    <td class="vera-{{ clue.veracidade.value }}">{{ clue.veracidade.value }}</td>
+                    <td>{{ clue.classified_veracity.value if clue.classified_veracity else '—' }}</td>
+                    <td class="muted">{{ classified_by.get(clue.id, '—') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Estatísticas #}
+    {% if team_stats %}
+    <div class="result-stats card">
+        <h2>Estatísticas por equipe</h2>
+        <div class="table-wrap">
+        <table class="result-table">
+            <thead>
+                <tr>
+                    <th>Equipe</th>
+                    <th>Quests concluídas</th>
+                    <th>Ações usadas</th>
+                    <th>Acusação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in team_stats %}
+                <tr>
+                    <td>{{ EQUIPE_LABEL[row.team.equipe] }}</td>
+                    <td>{{ row.quests_done }}</td>
+                    <td>{{ row.actions_used }}</td>
+                    <td>
+                        {% if row.team.accusation_used %}
+                            {% if row.team.accusation_correct %}
+                            <span style="color:var(--success)">Correta ✓</span>
+                            {% else %}
+                            <span style="color:var(--danger)">Errada ✗</span>
+                            {% endif %}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Novo jogo — só host #}
+    {% if is_host %}
+    <div class="card center">
+        <form action="/games" method="post">
+            <button type="submit" class="btn">Novo Jogo</button>
+        </form>
+    </div>
+    {% endif %}
+
+</section>
+{% endblock %}
