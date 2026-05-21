@@ -77,7 +77,6 @@ class Game(SQLModel, table=True):
     accomplices_count_revealed: bool = False
     winning_team_id: Optional[int] = Field(default=None, foreign_key="team.id")
 
-    teams: list["Team"] = Relationship(back_populates="game")
     characters: list["Character"] = Relationship(back_populates="game")
     clues: list["Clue"] = Relationship(back_populates="game")
 
@@ -96,7 +95,6 @@ class Team(SQLModel, table=True):
     )
     side_quest_hard_count: int = 0
 
-    game: Optional[Game] = Relationship(back_populates="teams")
     players: list["Player"] = Relationship(back_populates="team")
 
 
