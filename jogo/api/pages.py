@@ -1,23 +1,26 @@
+from datetime import timedelta
+from types import SimpleNamespace
 from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from jogo import actions as actions_mod
 from jogo import clues as clues_mod
 from jogo import engine
 from jogo.config import settings
-from jogo.db.models import Character, Clue, Game, GameStatus, Player, Team
+from jogo.db.models import Action, Character, Game, GameStatus, Player, SideQuest, Team
 from jogo.db.session import get_session
 from jogo.game_data import (
-    EQUIPE_LABEL,
     PROFISSAO_INFO,
     PROFISSOES_POR_EQUIPE,
-    ClueVeracity,
+    ClueCategory,
     Equipe,
     FuncaoEspecial,
     Profissao,
+    SideQuestStatus,
     TOTAL_CYCLES,
 )
 from jogo.realtime import manager
@@ -66,13 +69,16 @@ def create_game(session: Session = Depends(get_session)):
     session.add(game)
     session.commit()
     session.refresh(game)
-    return RedirectResponse(url=f"/jogo/{game.id}", status_code=303)
+    response = RedirectResponse(url=f"/jogo/{game.id}", status_code=303)
+    response.set_cookie("host_token", game.host_token, max_age=86400 * 7, httponly=True)
+    return response
 
 
 @router.get("/jogo/{game_id}", response_class=HTMLResponse)
 def game_entry(
     game_id: str,
     request: Request,
+    host_token: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
     """Tela do computador: escolhe equipe ou mostra status geral."""
@@ -89,7 +95,10 @@ def game_entry(
         return templates.TemplateResponse(
             request, "generating.html", {"game": game}
         )
-    if game.status in (GameStatus.PLAYING, GameStatus.FINISHED):
+    if game.status == GameStatus.FINISHED:
+        ctx = _result_context(session, game, is_host=_host_auth(game, host_token))
+        return templates.TemplateResponse(request, "result.html", ctx)
+    if game.status == GameStatus.PLAYING:
         ctx = _playing_context(session, game)
         return templates.TemplateResponse(request, "playing.html", ctx)
 
@@ -137,6 +146,7 @@ def team_room(
     game_id: str,
     team_id: int,
     request: Request,
+    host_token: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
     game = session.get(Game, game_id.upper())
@@ -150,7 +160,10 @@ def team_room(
         return templates.TemplateResponse(
             request, "generating.html", {"game": game, "team": team}
         )
-    if game.status in (GameStatus.PLAYING, GameStatus.FINISHED):
+    if game.status == GameStatus.FINISHED:
+        ctx = _result_context(session, game, is_host=_host_auth(game, host_token))
+        return templates.TemplateResponse(request, "result.html", ctx)
+    if game.status == GameStatus.PLAYING:
         ctx = _playing_context(session, game, team=team)
         return templates.TemplateResponse(request, "playing.html", ctx)
 
@@ -237,7 +250,10 @@ def player_page(
             "generating.html",
             {"game": game, "team": team, "player": player},
         )
-    if game.status in (GameStatus.PLAYING, GameStatus.FINISHED):
+    if game.status == GameStatus.FINISHED:
+        ctx = _result_context(session, game)
+        return templates.TemplateResponse(request, "result.html", ctx)
+    if game.status == GameStatus.PLAYING:
         ctx = _playing_context(session, game, team=team, player=player)
         return templates.TemplateResponse(request, "playing.html", ctx)
 
@@ -381,12 +397,14 @@ def _playing_context(
                         c for c in clues_by_cat.get(cat, []) if not c.classified
                     ]
                     action_targets["classify_category"] = cat.value if cat else ""
-                elif kind in (ak.STEAL_ELIMINATED_CLUES, ak.BLOCK_OPPONENT_CLASSIFY):
+                elif kind in (
+                    ak.STEAL_ELIMINATED_CLUES,
+                    ak.BLOCK_OPPONENT_CLASSIFY,
+                    ak.LOCK_SIDE_QUESTS_HARD,
+                ):
                     action_targets["opponent_teams"] = [
                         t for t in all_teams if t.id != team.id
                     ]
-
-    from jogo.game_data import IMAGE_STAGES
 
     return {
         "game": game,
@@ -410,6 +428,230 @@ def _playing_context(
         "all_teams": all_teams,
         **action_targets,
     }
+
+
+# ---------------------------------------------------------------------------
+# Result context
+# ---------------------------------------------------------------------------
+
+_FUNCAO_LABEL = {
+    FuncaoEspecial.CRIMINOSO: "Criminoso",
+    FuncaoEspecial.VITIMA: "Vítima",
+    FuncaoEspecial.CUMPLICE: "Cúmplice",
+}
+
+_CATEGORIA_LABEL = {
+    ClueCategory.OBJETO_LOCAL: "Objeto / Local",
+    ClueCategory.FICHA_CIVIL: "Ficha Civil",
+    ClueCategory.LINHA_TEMPO: "Linha do Tempo",
+}
+
+_FUNCAO_ORDER = {
+    FuncaoEspecial.CRIMINOSO: 0,
+    FuncaoEspecial.VITIMA: 1,
+    FuncaoEspecial.CUMPLICE: 2,
+}
+
+
+def _classified_by_map(session: Session, game_id: str, all_teams: list[Team]) -> dict:
+    team_map = {t.id: t for t in all_teams}
+    from jogo.db.models import Clue
+    clues = list(
+        session.exec(
+            select(Clue).where(
+                Clue.game_id == game_id,
+                Clue.classified_by_team_id.isnot(None),  # type: ignore[attr-defined]
+            )
+        ).all()
+    )
+    result = {}
+    for c in clues:
+        t = team_map.get(c.classified_by_team_id)
+        if t:
+            from jogo.game_data import EQUIPE_LABEL
+            result[c.id] = EQUIPE_LABEL[t.equipe]
+    return result
+
+
+def _result_context(session: Session, game: Game, is_host: bool = False) -> dict:
+    from jogo.db.models import Clue
+
+    characters = list(
+        session.exec(
+            select(Character).where(Character.game_id == game.id).order_by(Character.id)
+        ).all()
+    )
+    key_characters = sorted(
+        [c for c in characters if c.funcao_especial != FuncaoEspecial.NENHUMA],
+        key=lambda c: _FUNCAO_ORDER.get(c.funcao_especial, 99),
+    )
+    all_clues = list(
+        session.exec(
+            select(Clue)
+            .where(
+                Clue.game_id == game.id,
+                Clue.revealed_at_cycle.isnot(None),  # type: ignore[attr-defined]
+            )
+            .order_by(Clue.categoria, Clue.id)
+        ).all()
+    )
+    all_teams = engine.get_teams(session, game.id)
+    winner_team = next((t for t in all_teams if t.id == game.winning_team_id), None)
+    classified_by = _classified_by_map(session, game.id, all_teams)
+
+    team_stats = []
+    for team in all_teams:
+        quests_done = session.exec(
+            select(func.count()).where(
+                SideQuest.game_id == game.id,
+                SideQuest.team_id == team.id,
+                SideQuest.status == SideQuestStatus.COMPLETED,
+            )
+        ).one()
+        actions_used = session.exec(
+            select(func.count()).where(
+                Action.game_id == game.id,
+                Action.team_id == team.id,
+            )
+        ).one()
+        team_stats.append(
+            SimpleNamespace(team=team, quests_done=quests_done, actions_used=actions_used)
+        )
+
+    return {
+        "game": game,
+        "key_characters": key_characters,
+        "all_clues": all_clues,
+        "winner_team": winner_team,
+        "all_teams": all_teams,
+        "classified_by": classified_by,
+        "team_stats": team_stats,
+        "funcao_label": _FUNCAO_LABEL,
+        "categoria_label": _CATEGORIA_LABEL,
+        "is_host": is_host,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Host panel helpers
+# ---------------------------------------------------------------------------
+
+def _host_auth(game: Game, host_token: str) -> bool:
+    return bool(host_token) and host_token == game.host_token
+
+
+def _host_context(session: Session, game: Game) -> dict:
+    characters = list(
+        session.exec(
+            select(Character).where(Character.game_id == game.id).order_by(Character.id)
+        ).all()
+    )
+    char_map = {c.id: c for c in characters}
+    key_characters = sorted(
+        [c for c in characters if c.funcao_especial != FuncaoEspecial.NENHUMA],
+        key=lambda c: _FUNCAO_ORDER.get(c.funcao_especial, 99),
+    )
+    all_teams = engine.get_teams(session, game.id)
+    team_map = {t.id: t for t in all_teams}
+    teams_data = [
+        SimpleNamespace(team=t, players=engine.get_players(session, t.id))
+        for t in all_teams
+    ]
+    actions = list(
+        session.exec(
+            select(Action)
+            .where(Action.game_id == game.id)
+            .order_by(Action.cycle, Action.id)
+        ).all()
+    )
+    action_log = []
+    for a in actions:
+        char = char_map.get(a.character_id)
+        team = team_map.get(a.team_id)
+        target = char_map.get(a.target_character_id) if a.target_character_id else None
+        action_log.append(
+            SimpleNamespace(
+                action=a,
+                char_nome=f"{char.nome} {char.sobrenome}" if char else "?",
+                team_equipe=team.equipe if team else None,
+                target_nome=(
+                    f"{target.nome} {target.sobrenome}" if target else None
+                ),
+            )
+        )
+    return {
+        "game": game,
+        "key_characters": key_characters,
+        "teams_data": teams_data,
+        "action_log": action_log,
+        "funcao_label": _FUNCAO_LABEL,
+    }
+
+
+@router.get("/jogo/{game_id}/host", response_class=HTMLResponse)
+def host_panel(
+    game_id: str,
+    request: Request,
+    host_token: str = Cookie(default=""),
+    session: Session = Depends(get_session),
+):
+    game = session.get(Game, game_id.upper())
+    if not game:
+        raise HTTPException(status_code=404)
+    if not _host_auth(game, host_token):
+        raise HTTPException(status_code=403, detail="Token de host inválido")
+    ctx = _host_context(session, game)
+    return templates.TemplateResponse(request, "host.html", ctx)
+
+
+@router.post("/jogo/{game_id}/host/force-cycle")
+def host_force_cycle(
+    game_id: str,
+    host_token: str = Cookie(default=""),
+    session: Session = Depends(get_session),
+):
+    game = session.get(Game, game_id.upper())
+    if not game or not _host_auth(game, host_token):
+        raise HTTPException(status_code=403)
+    if game.status != GameStatus.PLAYING:
+        raise HTTPException(status_code=400, detail="Jogo não está em andamento")
+    from jogo.engine import CYCLE_DURATION_SECONDS, _utcnow
+    game.cycle_started_at = _utcnow() - timedelta(seconds=CYCLE_DURATION_SECONDS)
+    session.add(game)
+    session.commit()
+    return RedirectResponse(url=f"/jogo/{game_id}/host", status_code=303)
+
+
+@router.post("/jogo/{game_id}/host/restart-generation")
+def host_restart_generation(
+    game_id: str,
+    host_token: str = Cookie(default=""),
+    session: Session = Depends(get_session),
+):
+    game = session.get(Game, game_id.upper())
+    if not game or not _host_auth(game, host_token):
+        raise HTTPException(status_code=403)
+    if game.status != GameStatus.GENERATING:
+        raise HTTPException(status_code=400, detail="Jogo não está em geração")
+    engine.force_schedule_generation_task(game.id)
+    return RedirectResponse(url=f"/jogo/{game_id}/host", status_code=303)
+
+
+@router.post("/jogo/{game_id}/host/finish")
+async def host_finish_game(
+    game_id: str,
+    host_token: str = Cookie(default=""),
+    session: Session = Depends(get_session),
+):
+    game = session.get(Game, game_id.upper())
+    if not game or not _host_auth(game, host_token):
+        raise HTTPException(status_code=403)
+    if game.status not in (GameStatus.PLAYING, GameStatus.COUNTDOWN):
+        raise HTTPException(status_code=400, detail="Jogo não pode ser finalizado agora")
+    engine.finish_game(session, game, winner_team_id=None)
+    from jogo.engine import _RELOAD_HTML
+    await manager.broadcast(game.id, _RELOAD_HTML)
+    return RedirectResponse(url=f"/jogo/{game_id}/host", status_code=303)
 
 
 # ---------------------------------------------------------------------------

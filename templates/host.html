@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Host — Jogo {{ game.id }}{% endblock %}
+{% block body_attrs %}hx-ext="ws" ws-connect="/ws/{{ game.id }}"{% endblock %}
+
+{% block header_extras %}
+<div class="header-meta">
+    <span>Jogo: <strong>{{ game.id }}</strong></span>
+    <span>Status: <strong>{{ game.status.value }}</strong></span>
+    {% if game.current_cycle > 0 %}
+    <span>Ciclo: <strong>{{ game.current_cycle }}/6</strong></span>
+    {% endif %}
+    <a href="/jogo/{{ game.id }}" class="btn btn-sm btn-outline">← Sala</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="host-panel">
+
+    {# Controles #}
+    <div class="card host-controls">
+        <h2>Controles</h2>
+        {% if game.status.value == 'playing' %}
+        <form method="post" action="/jogo/{{ game.id }}/host/force-cycle"
+              onsubmit="return confirm('Forçar fim do ciclo atual?')">
+            <button type="submit" class="btn btn-secondary">Forçar próximo ciclo</button>
+        </form>
+        <form method="post" action="/jogo/{{ game.id }}/host/finish"
+              onsubmit="return confirm('Finalizar o jogo agora sem vencedor?')">
+            <button type="submit" class="btn btn-danger">Finalizar jogo</button>
+        </form>
+        {% elif game.status.value == 'countdown' %}
+        <form method="post" action="/jogo/{{ game.id }}/host/finish"
+              onsubmit="return confirm('Finalizar o jogo?')">
+            <button type="submit" class="btn btn-danger">Finalizar jogo</button>
+        </form>
+        {% elif game.status.value == 'generating' %}
+        <form method="post" action="/jogo/{{ game.id }}/host/restart-generation"
+              onsubmit="return confirm('Reiniciar a geração do jogo?')">
+            <button type="submit" class="btn btn-secondary">Reiniciar geração</button>
+        </form>
+        {% elif game.status.value == 'finished' %}
+        <p class="muted">Jogo encerrado. <a href="/jogo/{{ game.id }}">Ver resultado</a></p>
+        {% else %}
+        <p class="muted">Sem controles disponíveis no status atual.</p>
+        {% endif %}
+    </div>
+
+    {# Segredos #}
+    {% if key_characters %}
+    <div class="card host-secrets">
+        <h2>Segredos do crime</h2>
+        <ul>
+            {% for c in key_characters %}
+            <li>
+                <strong>{{ funcao_label[c.funcao_especial] }}:</strong>
+                {{ c.nome }} {{ c.sobrenome }}
+                ({{ PROFISSAO_INFO[c.profissao][0] }} — {{ EQUIPE_LABEL[c.equipe] }})
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {# Equipes e jogadores #}
+    {% if teams_data %}
+    <div class="card">
+        <h2>Equipes e jogadores</h2>
+        <div class="host-teams-grid">
+            {% for td in teams_data %}
+            <div class="host-team">
+                <h3>{{ EQUIPE_LABEL[td.team.equipe] }}</h3>
+                {% if td.players %}
+                <ul>
+                    {% for p in td.players %}
+                    <li>
+                        {{ p.nome or '—' }}
+                        {% if p.profissao %}
+                        <span class="muted">— {{ PROFISSAO_INFO[p.profissao][0] }}</span>
+                        {% endif %}
+                        {% if p.ready %}<span class="tag-ready">pronto</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="muted">Sem jogadores.</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# Log de ações #}
+    {% if action_log %}
+    <div class="card">
+        <h2>Log de ações</h2>
+        <div class="table-wrap">
+        <table class="result-table">
+            <thead>
+                <tr>
+                    <th>Ciclo</th>
+                    <th>Equipe</th>
+                    <th>Personagem</th>
+                    <th>Ação</th>
+                    <th>Alvo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in action_log %}
+                <tr>
+                    <td>{{ row.action.cycle }}</td>
+                    <td class="muted">{{ EQUIPE_LABEL[row.team_equipe] if row.team_equipe else '—' }}</td>
+                    <td>{{ row.char_nome }}</td>
+                    <td class="muted">{{ row.action.kind.value }}</td>
+                    <td>{{ row.target_nome or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <p class="muted">Nenhuma ação registrada ainda.</p>
+    </div>
+    {% endif %}
+
+</section>
+{% endblock %}

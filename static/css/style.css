@@ -359,6 +359,124 @@ details summary {
 }
 
 /* ======================================================================
+   Result screen
+   ====================================================================== */
+
+.result { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.result-banner h1 { font-size: 2.5rem; margin: 0 0 0.5rem; color: var(--primary); }
+.result-banner p { font-size: 1.1rem; margin: 0; }
+
+.key-chars-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.key-char-card {
+    background: var(--surface-2);
+    border: 2px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.key-char-card.criminoso { border-color: var(--danger); }
+.key-char-card.vitima { border-color: var(--muted); }
+.key-char-card.cumplice { border-color: var(--secondary); }
+
+.key-char-role {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.key-char-name { font-size: 1.1rem; font-weight: 600; }
+.key-char-prof { font-size: 0.85rem; color: var(--muted); }
+.key-char-team { font-size: 0.8rem; color: var(--secondary); }
+
+.story-text { line-height: 1.9; white-space: pre-line; }
+
+.table-wrap { overflow-x: auto; }
+
+.result-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.result-table th,
+.result-table td {
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.result-table th {
+    background: var(--surface-2);
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.vera-verdadeira { color: var(--success); font-weight: 600; }
+.vera-enganosa { color: var(--primary); }
+.vera-falsa { color: var(--danger); }
+.vera-inutil { color: var(--muted); }
+
+/* ======================================================================
+   Host panel
+   ====================================================================== */
+
+.host-panel { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.host-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.host-controls h2 { margin: 0; flex: 1 1 100%; }
+
+.host-secrets ul { margin: 0.5rem 0 0; padding-left: 1.25rem; line-height: 2; }
+
+.host-teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.host-team h3 { margin: 0 0 0.4rem; color: var(--secondary); font-size: 1rem; }
+.host-team ul { margin: 0; padding-left: 1.25rem; line-height: 1.8; font-size: 0.9rem; }
+
+.tag-ready {
+    display: inline-block;
+    font-size: 0.65rem;
+    background: var(--success);
+    color: #000;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+}
+
+.btn-secondary {
+    background: var(--secondary);
+    color: #fff;
+    border: none;
+}
+
+.btn-secondary:hover { opacity: 0.85; }
+
+/* ======================================================================
    Side quests
    ====================================================================== */
 

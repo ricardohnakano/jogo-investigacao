@@ -365,6 +365,16 @@ def schedule_generation_task(game_id: str) -> None:
     _generation_tasks[game_id] = task
 
 
+def force_schedule_generation_task(game_id: str) -> None:
+    """Cancela task existente (se houver) e agenda nova — para uso do host."""
+    existing = _generation_tasks.pop(game_id, None)
+    if existing and not existing.done():
+        existing.cancel()
+    task = asyncio.create_task(_run_generation(game_id))
+    task.add_done_callback(_on_task_done)
+    _generation_tasks[game_id] = task
+
+
 def schedule_cycle_task(game_id: str) -> None:
     existing = _cycle_tasks.get(game_id)
     if existing and not existing.done():
