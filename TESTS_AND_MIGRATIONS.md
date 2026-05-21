@@ -33,17 +33,16 @@ pytest tests/ --cov=jogo --cov-report=html
    - Mastermind resposta correta → `won=True`, `bulls=4`
    - Mastermind resposta formato errado → `ok=False`
 
-### Adicionar mais testes
-Para aumento de cobertura (target >70%):
+### Testes de pistas (test_clues.py)
 
-```python
-# tests/test_clues.py
-def test_clue_reveal_schedule():
-    # Verifica CYCLE_CLUE_SCHEDULE
-    
-def test_classified_veracity_eliminates():
-    # Clue classificada como não-verdadeira é eliminada
-```
+**TestClueRevealSchedule** (1 teste):
+- `test_clue_reveal_schedule_cycles_1_to_6`: Valida que `reveal_for_cycle()` marca `revealed_at_cycle` corretamente para cada ciclo conforme `CYCLE_CLUE_SCHEDULE`
+
+**TestClassifiedVeracityElimination** (2 testes):
+- `test_classified_non_verdadeira_eliminates_clue`: Verifica que pistas classificadas como NÃO-VERDADEIRA (FALSA, ENGANOSA, etc) são automaticamente eliminadas
+- `test_classified_verdadeira_not_eliminated`: Confirma que pistas classificadas como VERDADEIRA NÃO são eliminadas
+
+Total: 10 testes implementados (7 game logic + 3 clues)
 
 ## Migrações (Alembic)
 
