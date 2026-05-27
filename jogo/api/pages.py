@@ -301,7 +301,12 @@ async def set_profission(
 
     player.profissao = profissao
     session.add(player)
-    session.commit()
+    try:
+        session.commit()
+    except Exception:
+        # QoL: Profissão já foi escolhida por outro jogador (race condition)
+        session.rollback()
+        raise HTTPException(status_code=409, detail="Profissão já foi escolhida")
 
     game = session.get(Game, team.game_id)
     await _broadcast_update(session, game)

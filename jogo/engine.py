@@ -244,7 +244,7 @@ async def _run_generation(game_id: str) -> None:
                 game.historia_completa or "",
             )
             # P0 Fix: DALLE pode falhar, continua sem imagem
-            success = await asyncio.to_thread(img_module.generate_and_degrade, game.id, prompt)
+            await asyncio.to_thread(img_module.generate_and_degrade, game.id, prompt)
             game.image_ready = True  # Marca como pronto mesmo se falhou (usa placeholder)
             session.add(game)
             session.commit()
@@ -263,7 +263,8 @@ async def _run_generation(game_id: str) -> None:
         schedule_countdown_task(game_id)
     except Exception as e:
         # P0 Fix: Geração falhou - voltar para READY_CHECK para tentar novamente
-        print(f"[ERROR] Geração falhou para {game_id}: {e}")
+        from jogo.logger import log_error
+        log_error(game_id, "Geração falhou", e)
         with Session(db_engine) as session:
             game = session.get(Game, game_id)
             if game:
