@@ -217,48 +217,61 @@ async def _run_generation(game_id: str) -> None:
     from jogo import crime, narrative
     from jogo.realtime import manager
 
-    with Session(db_engine) as session:
-        game = session.get(Game, game_id)
-        if not game or game.status != GameStatus.GENERATING:
-            return
+    try:
+        with Session(db_engine) as session:
+            game = session.get(Game, game_id)
+            if not game or game.status != GameStatus.GENERATING:
+                return
 
-        await _broadcast_step(game_id, "Sorteando personagens e dados do crime…")
-        crime.generate(session, game)
-        crime_problems = crime.validate_generated(session, game.id)
-        if crime_problems:
-            raise RuntimeError(f"Sorteio inválido: {crime_problems}")
+            await _broadcast_step(game_id, "Sorteando personagens e dados do crime…")
+            crime.generate(session, game)
+            crime_problems = crime.validate_generated(session, game.id)
+            if crime_problems:
+                raise RuntimeError(f"Sorteio inválido: {crime_problems}")
 
-        await _broadcast_step(game_id, "Construindo história, dicas e linha do tempo…")
-        await asyncio.to_thread(narrative.generate_all, session, game)
-        narrative_problems = narrative.validate_persisted(session, game.id)
-        if narrative_problems:
-            raise RuntimeError(f"Narrativa inválida: {narrative_problems}")
+            await _broadcast_step(game_id, "Construindo história, dicas e linha do tempo…")
+            await asyncio.to_thread(narrative.generate_all, session, game)
+            narrative_problems = narrative.validate_persisted(session, game.id)
+            if narrative_problems:
+                raise RuntimeError(f"Narrativa inválida: {narrative_problems}")
 
-        await _broadcast_step(game_id, "Gerando imagem da cena do crime…")
-        session.refresh(game)
-        from jogo import image as img_module
-        prompt = img_module.build_prompt(
-            game.local or "",
-            game.objeto or "",
-            game.historia_completa or "",
-        )
-        await asyncio.to_thread(img_module.generate_and_degrade, game.id, prompt)
-        game.image_ready = True
-        session.add(game)
-        session.commit()
+            await _broadcast_step(game_id, "Gerando imagem da cena do crime…")
+            session.refresh(game)
+            from jogo import image as img_module
+            prompt = img_module.build_prompt(
+                game.local or "",
+                game.objeto or "",
+                game.historia_completa or "",
+            )
+            # P0 Fix: DALLE pode falhar, continua sem imagem
+            success = await asyncio.to_thread(img_module.generate_and_degrade, game.id, prompt)
+            game.image_ready = True  # Marca como pronto mesmo se falhou (usa placeholder)
+            session.add(game)
+            session.commit()
 
-        finish_generation(session, game)
+            finish_generation(session, game)
 
-        elapsed = (_utcnow() - game.generation_started_at).total_seconds()
-        remaining = max(0.0, GENERATION_MIN_SECONDS - elapsed)
-        if remaining > 0:
-            await asyncio.sleep(remaining)
+            elapsed = (_utcnow() - game.generation_started_at).total_seconds()
+            remaining = max(0.0, GENERATION_MIN_SECONDS - elapsed)
+            if remaining > 0:
+                await asyncio.sleep(remaining)
 
-        session.refresh(game)
-        start_countdown(session, game)
+            session.refresh(game)
+            start_countdown(session, game)
 
-    await manager.broadcast(game_id, _RELOAD_HTML)
-    schedule_countdown_task(game_id)
+        await manager.broadcast(game_id, _RELOAD_HTML)
+        schedule_countdown_task(game_id)
+    except Exception as e:
+        # P0 Fix: Geração falhou - voltar para READY_CHECK para tentar novamente
+        print(f"[ERROR] Geração falhou para {game_id}: {e}")
+        with Session(db_engine) as session:
+            game = session.get(Game, game_id)
+            if game:
+                game.status = GameStatus.READY_CHECK
+                game.generation_started_at = None
+                session.add(game)
+                session.commit()
+        await manager.broadcast(game_id, _RELOAD_HTML)
 
 
 async def _run_cycle(game_id: str) -> None:
