@@ -185,3 +185,25 @@ def visible_clues_by_category(
     for clue in all_clues:
         result[clue.categoria].append(clue)
     return result
+
+
+def validate_clue_targets(session: Session, game_id: str) -> list[str]:
+    """QoL: Valida que todas as pistas FICHA_CIVIL têm target_character_id.
+
+    Retorna lista de problemas encontrados (vazia = OK).
+    """
+    problems = []
+    clues = list(
+        session.exec(
+            select(Clue).where(
+                Clue.game_id == game_id,
+                Clue.categoria == CC.FICHA_CIVIL,
+            )
+        ).all()
+    )
+
+    for clue in clues:
+        if clue.target_character_id is None:
+            problems.append(f"Clue {clue.id} (FICHA_CIVIL) sem target_character_id")
+
+    return problems

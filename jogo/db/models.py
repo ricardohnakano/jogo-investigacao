@@ -99,6 +99,12 @@ class Team(SQLModel, table=True):
 
 
 class Player(SQLModel, table=True):
+    """Jogador em um time. Profissão é única por time."""
+
+    __table_args__ = (
+        UniqueConstraint("team_id", "profissao", name="uq_team_profissao"),
+    )
+
     id: str = Field(
         default_factory=_gen_player_id, primary_key=True, max_length=32
     )
