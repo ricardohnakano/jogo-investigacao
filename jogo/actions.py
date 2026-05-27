@@ -84,6 +84,7 @@ PROFISSAO_TO_CATEGORY: dict[Profissao, ClueCategory] = {
 def _handle_eliminate(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
+    """Handler: eliminate target character."""
     char_id = body.get("target_character_id")
     if not char_id:
         return {"ok": False, "error": "target_character_id obrigatório"}
@@ -100,6 +101,7 @@ def _handle_eliminate(
 def _handle_reveal_true_clue(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
+    """Handler: reveal unrevealed true clue of character's category."""
     categoria = PROFISSAO_TO_CATEGORY.get(character.profissao)
     if not categoria:
         return {"ok": False, "error": "Categoria não mapeada para esta profissão"}
@@ -124,6 +126,7 @@ def _handle_reveal_true_clue(
 def _handle_interrogate(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
+    """Handler: reveal all unrevealed clues for target character."""
     char_id = body.get("target_character_id")
     if not char_id:
         return {"ok": False, "error": "target_character_id obrigatório"}
@@ -150,6 +153,7 @@ def _handle_interrogate(
 def _handle_classify(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
+    """Handler: classify clue (mark V/E/F/I, eliminate if not true)."""
     if (
         team.classification_blocked_until_cycle is not None
         and team.classification_blocked_until_cycle > game.current_cycle
@@ -192,6 +196,7 @@ def _handle_classify(
 def _handle_steal(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
+    """Handler: steal all eliminated clues of category from target team."""
     target_team_id = body.get("target_team_id")
     if not target_team_id:
         return {"ok": False, "error": "target_team_id obrigatório"}
@@ -221,6 +226,7 @@ def _handle_steal(
 def _handle_block(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
+    """Handler: block target team from classifying next cycle."""
     target_team_id = body.get("target_team_id")
     if not target_team_id:
         return {"ok": False, "error": "target_team_id obrigatório"}
@@ -237,6 +243,7 @@ def _handle_block(
 def _handle_lock_side_quests(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
+    """Handler: lock side quests hard for target team."""
     target_team_id = body.get("target_team_id")
     if not target_team_id:
         return {"ok": False, "error": "target_team_id obrigatório"}
@@ -251,12 +258,14 @@ def _handle_lock_side_quests(
 def _handle_physical(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
+    """Handler: physical actions (Delegado, Oficial, Ex-policial) — no-op."""
     return {"ok": True}
 
 
 def _handle_reveal_accomplices(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
+    """Handler: reveal count of accomplices."""
     game.accomplices_count_revealed = True
     session.add(game)
     n = sum(
@@ -273,6 +282,7 @@ def _handle_reveal_accomplices(
 def _handle_improve_image(
     session: Session, game: Game, character: Character, team: Team, body: dict
 ) -> dict:
+    """Handler: increment image stage bonus (capped at max)."""
     max_bonus = len(IMAGE_STAGES) - 1
     if game.image_stage_bonus < max_bonus:
         game.image_stage_bonus += 1
@@ -364,6 +374,7 @@ def execute_action(
 
 
 def _safe_int(val: object) -> Optional[int]:
+    """Safely convert value to int, return None on failure."""
     try:
         return int(val) if val is not None else None
     except (TypeError, ValueError):
@@ -371,8 +382,10 @@ def _safe_int(val: object) -> Optional[int]:
 
 
 def action_kind_for(profissao: Profissao) -> Optional[ActionKind]:
+    """Get action type for profession."""
     return PROFISSAO_TO_ACTION.get(profissao)
 
 
 def category_for(profissao: Profissao) -> Optional[ClueCategory]:
+    """Get clue category for profession."""
     return PROFISSAO_TO_CATEGORY.get(profissao)

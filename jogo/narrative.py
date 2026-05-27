@@ -63,7 +63,7 @@ Gerar conteúdo narrativo de altíssima qualidade pro jogo: história verossími
 
 
 def _ctx_personagens(characters: list[Character]) -> str:
-    """Formata os 24 personagens para o prompt."""
+    """Format all 24 characters as prompt context."""
     lines: list[str] = []
     for c in characters:
         funcao = c.funcao_especial.value if c.funcao_especial != FuncaoEspecial.NENHUMA else "-"
@@ -75,7 +75,7 @@ def _ctx_personagens(characters: list[Character]) -> str:
 
 
 def _ctx_envolvidos(characters: list[Character]) -> dict:
-    """Acha criminoso/vítima/cúmplices."""
+    """Find criminal, victim, and accomplices from character list."""
     by_func = {f: [c for c in characters if c.funcao_especial == f]
                for f in [FuncaoEspecial.CRIMINOSO, FuncaoEspecial.VITIMA, FuncaoEspecial.CUMPLICE]}
     crim = by_func[FuncaoEspecial.CRIMINOSO][0]
@@ -85,6 +85,7 @@ def _ctx_envolvidos(characters: list[Character]) -> dict:
 
 
 def _format_envolvido(c: Character) -> str:
+    """Format character name, age, profession, and team for narrative."""
     return (
         f"{c.nome} {c.sobrenome}, {c.idade} anos, {PROFISSAO_INFO[c.profissao][0]} "
         f"({EQUIPE_LABEL[c.equipe]})"
@@ -265,6 +266,7 @@ def _persist_clues(
     category: ClueCategory,
     items: dict[ClueVeracity, list[str]],
 ) -> None:
+    """Save clues grouped by veracity to database."""
     for veracity, contents in items.items():
         for c in contents:
             session.add(Clue(
@@ -341,7 +343,7 @@ def generate_all(session: Session, game: Game) -> None:
 
 
 def validate_persisted(session: Session, game_id: str) -> list[str]:
-    """Sanity checks pós-persistência. Útil em testes e debug."""
+    """Validate clue counts post-generation. Returns problems list."""
     from jogo.game_data import CLUE_COUNTS
 
     problems: list[str] = []

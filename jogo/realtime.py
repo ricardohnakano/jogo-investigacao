@@ -16,11 +16,13 @@ class ConnectionManager:
     async def connect(
         self, game_id: str, ws: WebSocket, team_id: Optional[int] = None
     ) -> None:
+        """Register WebSocket connection for game room."""
         await ws.accept()
         async with self._lock:
             self._rooms[game_id].add((ws, team_id))
 
     async def disconnect(self, game_id: str, ws: WebSocket) -> None:
+        """Unregister WebSocket connection from game room."""
         async with self._lock:
             self._rooms[game_id] = {
                 (w, t) for w, t in self._rooms[game_id] if w is not ws
@@ -29,6 +31,7 @@ class ConnectionManager:
                 del self._rooms[game_id]
 
     async def broadcast(self, game_id: str, message: str) -> None:
+        """Send message to all connections in a game room."""
         async with self._lock:
             conns = list(self._rooms.get(game_id, ()))
         dead: list[WebSocket] = []
@@ -46,6 +49,7 @@ class ConnectionManager:
     async def broadcast_to_team(
         self, game_id: str, team_id: int, message: str
     ) -> None:
+        """Send message to all connections in a specific team."""
         async with self._lock:
             conns = [
                 (w, t)

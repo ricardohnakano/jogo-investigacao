@@ -40,6 +40,7 @@ QUEST_STATUS_LABEL = {
 def _player_and_team(
     game_id: str, session: Session, player_id: str | None
 ) -> tuple[Player | None, Team | None]:
+    """Fetch player and validate team association."""
     if not player_id:
         return None, None
     player = session.get(Player, player_id)
@@ -52,6 +53,7 @@ def _player_and_team(
 
 
 def _ctx(extra: dict | None = None) -> dict:
+    """Build template context with quest labels."""
     base = {
         "QUEST_KIND_LABEL": QUEST_KIND_LABEL,
         "QUEST_DIFF_LABEL": QUEST_DIFF_LABEL,
@@ -69,6 +71,7 @@ def list_quests(
     request: Request,
     player_id: str | None = Cookie(default=None),
 ):
+    """Display side quests list for team in current cycle."""
     with Session(engine) as session:
         game = session.get(Game, game_id)
         if not game or game.status != GameStatus.PLAYING:
@@ -94,6 +97,7 @@ def claim_quest(
     request: Request,
     player_id: str | None = Cookie(default=None),
 ):
+    """Lock side quest for player and display game board."""
     with Session(engine) as session:
         game = session.get(Game, game_id)
         if not game or game.status != GameStatus.PLAYING:
@@ -127,6 +131,7 @@ async def submit_quest(
     request: Request,
     player_id: str | None = Cookie(default=None),
 ):
+    """Process quest submission and apply reward if won."""
     form = await request.form()
     body = dict(form)
 
@@ -173,6 +178,7 @@ def release_quest(
     request: Request,
     player_id: str | None = Cookie(default=None),
 ):
+    """Release locked side quest back to pending status."""
     with Session(engine) as session:
         game = session.get(Game, game_id)
         if not game or game.status != GameStatus.PLAYING:

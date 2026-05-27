@@ -23,22 +23,26 @@ _RELOAD_HTML = (
 
 
 def _utcnow() -> datetime:
+    """Get current UTC time as tz-naive datetime (tzinfo=None)."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def get_teams(session: Session, game_id: str) -> list[Team]:
+    """Fetch all teams in a game."""
     return list(
         session.exec(select(Team).where(Team.game_id == game_id)).all()
     )
 
 
 def get_players(session: Session, team_id: int) -> list[Player]:
+    """Fetch all players in a team."""
     return list(
         session.exec(select(Player).where(Player.team_id == team_id)).all()
     )
 
 
 def all_players(session: Session, game_id: str) -> list[Player]:
+    """Fetch all players in a game across all teams."""
     return list(
         session.exec(
             select(Player).join(Team).where(Team.game_id == game_id)
@@ -47,6 +51,7 @@ def all_players(session: Session, game_id: str) -> list[Player]:
 
 
 def can_start(session: Session, game_id: str) -> bool:
+    """Check if game meets minimum requirements to start (teams, players, ready)."""
     teams = get_teams(session, game_id)
     if len(teams) < MIN_TEAMS:
         return False
@@ -70,6 +75,7 @@ def can_start(session: Session, game_id: str) -> bool:
 
 
 def derive_status(session: Session, game: Game) -> GameStatus:
+    """Derive current status from game state (timestamps and teams)."""
     if game.finished_at:
         return GameStatus.FINISHED
     if game.started_at:
@@ -93,6 +99,7 @@ def derive_status(session: Session, game: Game) -> GameStatus:
 
 
 def sync_status(session: Session, game: Game) -> bool:
+    """Update game.status to match current state if changed. Returns True if updated."""
     new_status = derive_status(session, game)
     if game.status != new_status:
         game.status = new_status
@@ -104,6 +111,7 @@ def sync_status(session: Session, game: Game) -> bool:
 
 
 def start_generation(session: Session, game: Game) -> None:
+    """Transition game to GENERATING state, start LLM generation task."""
     game.generation_started_at = _utcnow()
     game.status = GameStatus.GENERATING
     session.add(game)
@@ -111,12 +119,14 @@ def start_generation(session: Session, game: Game) -> None:
 
 
 def finish_generation(session: Session, game: Game) -> None:
+    """Mark generation complete (timestamp only, status unchanged)."""
     game.generation_finished_at = _utcnow()
     session.add(game)
     session.commit()
 
 
 def start_countdown(session: Session, game: Game) -> None:
+    """Transition game to COUNTDOWN state, start countdown task."""
     game.countdown_started_at = _utcnow()
     game.status = GameStatus.COUNTDOWN
     session.add(game)
@@ -124,6 +134,7 @@ def start_countdown(session: Session, game: Game) -> None:
 
 
 def start_game(session: Session, game: Game) -> None:
+    """Transition game to PLAYING state, initialize cycle 1."""
     game.started_at = _utcnow()
     game.status = GameStatus.PLAYING
     session.add(game)
@@ -133,6 +144,7 @@ def start_game(session: Session, game: Game) -> None:
 def finish_game(
     session: Session, game: Game, winner_team_id: int | None
 ) -> None:
+    """Transition game to FINISHED state, record winner if applicable."""
     game.finished_at = _utcnow()
     game.status = GameStatus.FINISHED
     game.winning_team_id = winner_team_id
@@ -141,6 +153,7 @@ def finish_game(
 
 
 def countdown_remaining_seconds(game: Game) -> int:
+    """Compute remaining countdown time (0 if expired or not started)."""
     if not game.countdown_started_at:
         return COUNTDOWN_SECONDS
     elapsed = (_utcnow() - game.countdown_started_at).total_seconds()
@@ -148,6 +161,7 @@ def countdown_remaining_seconds(game: Game) -> int:
 
 
 def cycle_remaining_seconds(game: Game) -> int:
+    """Compute remaining cycle time (0 if expired or not started)."""
     if not game.cycle_started_at:
         return CYCLE_DURATION_SECONDS
     elapsed = (_utcnow() - game.cycle_started_at).total_seconds()
@@ -171,6 +185,7 @@ _cycle_tasks: dict[str, asyncio.Task] = {}
 
 
 def _on_task_done(task: asyncio.Task) -> None:
+    """Callback for background tasks: log exceptions if task failed."""
     if task.cancelled():
         return
     exc = task.exception()
@@ -180,6 +195,7 @@ def _on_task_done(task: asyncio.Task) -> None:
 
 
 async def _run_countdown(game_id: str) -> None:
+    """Background task: count down 10 seconds, broadcast remaining time, then start game."""
     from jogo.realtime import manager
 
     with Session(db_engine) as session:
@@ -204,6 +220,7 @@ async def _run_countdown(game_id: str) -> None:
 
 
 async def _broadcast_step(game_id: str, label: str) -> None:
+    """Broadcast a generation step label to all connected players (OOB swap)."""
     from jogo.realtime import manager
     html = (
         f'<div id="generating-step" hx-swap-oob="outerHTML">'
@@ -214,6 +231,7 @@ async def _broadcast_step(game_id: str, label: str) -> None:
 
 
 async def _run_generation(game_id: str) -> None:
+    """Background task: generate crime, narrative, image. On error, reset to READY_CHECK."""
     from jogo import crime, narrative
     from jogo.realtime import manager
 
@@ -276,7 +294,7 @@ async def _run_generation(game_id: str) -> None:
 
 
 async def _run_cycle(game_id: str) -> None:
-    """Loop principal de ciclos. Roda do ciclo 1 ao TOTAL_CYCLES."""
+    """Background task: main cycle loop (1–6). Poll for cycle end, advance on timeout."""
     from jogo import clues as clues_mod
     from jogo.realtime import manager
 
@@ -362,6 +380,7 @@ async def _run_cycle(game_id: str) -> None:
 
 
 def schedule_countdown_task(game_id: str) -> None:
+    """Schedule countdown task if not already running."""
     existing = _countdown_tasks.get(game_id)
     if existing and not existing.done():
         return
@@ -371,6 +390,7 @@ def schedule_countdown_task(game_id: str) -> None:
 
 
 def schedule_generation_task(game_id: str) -> None:
+    """Schedule generation task if not already running."""
     existing = _generation_tasks.get(game_id)
     if existing and not existing.done():
         return
@@ -380,7 +400,7 @@ def schedule_generation_task(game_id: str) -> None:
 
 
 def force_schedule_generation_task(game_id: str) -> None:
-    """Cancela task existente (se houver) e agenda nova — para uso do host."""
+    """Cancel existing generation task (if any) and schedule new one (for host reset)."""
     existing = _generation_tasks.pop(game_id, None)
     if existing and not existing.done():
         existing.cancel()
@@ -390,6 +410,7 @@ def force_schedule_generation_task(game_id: str) -> None:
 
 
 def schedule_cycle_task(game_id: str) -> None:
+    """Schedule cycle task if not already running."""
     existing = _cycle_tasks.get(game_id)
     if existing and not existing.done():
         return

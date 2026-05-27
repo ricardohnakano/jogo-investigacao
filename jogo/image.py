@@ -30,19 +30,22 @@ STAGE_FILENAME_TPL = "image_stage_{n}.png"
 
 
 def is_mock_mode() -> bool:
+    """Check if mock mode is enabled via JOGO_MOCK_LLM environment variable."""
     return os.environ.get("JOGO_MOCK_LLM", "").strip() in ("1", "true", "yes")
 
 
 def image_dir(game_id: str) -> Path:
+    """Get directory path for game's image files."""
     return GAMES_DIR / game_id
 
 
 def stage_path(game_id: str, stage: int) -> Path:
-    """stage: 1..len(IMAGE_STAGES)"""
+    """Get path for degraded image stage (1..len(IMAGE_STAGES))."""
     return image_dir(game_id) / STAGE_FILENAME_TPL.format(n=stage)
 
 
 def original_path(game_id: str) -> Path:
+    """Get path for original unaltered crime scene image."""
     return image_dir(game_id) / ORIGINAL_FILENAME
 
 
@@ -77,7 +80,7 @@ def generate_and_degrade(game_id: str, prompt: str) -> bool:
 
 
 def _degrade(img: Image.Image, quality: float) -> Image.Image:
-    """Pixeliza imagem: downscale para `quality` da resolução original e upscale de volta."""
+    """Pixelize image via downscale then upscale (nearest-neighbor)."""
     w, h = img.size
     small_w = max(1, int(w * quality))
     small_h = max(1, int(h * quality))
@@ -86,7 +89,7 @@ def _degrade(img: Image.Image, quality: float) -> Image.Image:
 
 
 def _mock_image(prompt: str) -> Image.Image:
-    """Placeholder noir gerado com Pillow — sem API."""
+    """Generate noir placeholder image with Pillow (no API call)."""
     size = 1024
     img = Image.new("RGB", (size, size), color=(18, 18, 24))
     draw = ImageDraw.Draw(img)
@@ -120,7 +123,7 @@ def _mock_image(prompt: str) -> Image.Image:
 
 
 def _call_dalle(prompt: str) -> Image.Image:
-    """Chama DALL-E 3 via OpenAI SDK e retorna PIL Image."""
+    """Call DALL-E 3 API and return PIL Image."""
     from openai import OpenAI
 
     api_key = settings.openai_api_key or os.environ.get("OPENAI_API_KEY")
@@ -143,12 +146,11 @@ def _call_dalle(prompt: str) -> Image.Image:
 
 
 def build_prompt(local: str, objeto: str, historia: str) -> str:
-    """Monta prompt de imagem noir para DALL-E."""
+    """Build noir crime scene prompt for DALL-E image generation."""
     resumo = historia[:300].replace("\n", " ") if historia else ""
     return (
-        f"Crime scene photograph, noir detective style, dark cinematic lighting, "
-        f"photorealistic, no people present, ultra-detailed evidence scene. "
-        f"Setting: {local}. "
-        f"A {objeto} is prominently visible. "
-        f"Context: {resumo}"
+        f"Crime scene photograph, noir detective style, dark cinematic "
+        f"lighting, photorealistic, no people present, ultra-detailed "
+        f"evidence scene. Setting: {local}. A {objeto} is prominently "
+        f"visible. Context: {resumo}"
     )

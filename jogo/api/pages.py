@@ -31,10 +31,12 @@ router = APIRouter()
 
 
 def _local_url(path: str = "") -> str:
+    """Build local network URL for game access."""
     return f"http://{get_local_ip()}:{settings.port}{path}"
 
 
 def _ctx_roster(session: Session, game: Game) -> dict:
+    """Build template context with teams, players, and start readiness."""
     teams = engine.get_teams(session, game.id)
     teams_data = []
     for t in teams:
@@ -48,6 +50,7 @@ def _ctx_roster(session: Session, game: Game) -> dict:
 
 
 async def _broadcast_update(session: Session, game: Game) -> None:
+    """Broadcast updated game roster to all connected WebSockets."""
     engine.sync_status(session, game)
     ctx = _ctx_roster(session, game)
     html = templates.get_template("_ws_update.html").render(ctx)
@@ -56,6 +59,7 @@ async def _broadcast_update(session: Session, game: Game) -> None:
 
 @router.get("/", response_class=HTMLResponse)
 def lobby(request: Request):
+    """Display main lobby page with join URL and QR code."""
     return templates.TemplateResponse(
         request,
         "lobby.html",
@@ -65,6 +69,7 @@ def lobby(request: Request):
 
 @router.post("/games")
 def create_game(session: Session = Depends(get_session)):
+    """Create new game and redirect to game entry page."""
     game = Game()
     session.add(game)
     session.commit()
@@ -81,7 +86,7 @@ def game_entry(
     host_token: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
-    """Tela do computador: escolhe equipe ou mostra status geral."""
+    """Display game hub: team selection or status based on game state."""
     game = session.get(Game, game_id.upper())
     if not game:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
@@ -120,6 +125,7 @@ async def pick_equipe(
     equipe: Equipe = Form(...),
     session: Session = Depends(get_session),
 ):
+    """Create team for chosen faction or redirect if exists."""
     game = session.get(Game, game_id.upper())
     if not game:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
@@ -149,6 +155,7 @@ def team_room(
     host_token: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
+    """Display team room with roster and join QR code."""
     game = session.get(Game, game_id.upper())
     team = session.get(Team, team_id)
     if not game or not team or team.game_id != game.id:
@@ -188,6 +195,7 @@ def player_landing(
     request: Request,
     session: Session = Depends(get_session),
 ):
+    """Display player join form for team."""
     game = session.get(Game, game_id.upper())
     team = session.get(Team, team_id)
     if not game or not team or team.game_id != game.id:
@@ -205,6 +213,7 @@ async def join_team(
     nome: str = Form(...),
     session: Session = Depends(get_session),
 ):
+    """Create player and set player_id cookie, redirect to player page."""
     game = session.get(Game, game_id.upper())
     team = session.get(Team, team_id)
     if not game or not team or team.game_id != game.id:
@@ -228,6 +237,7 @@ def player_page(
     player_id: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
+    """Display player page: profession select or game status."""
     if not player_id:
         return RedirectResponse(url="/", status_code=303)
 
@@ -285,6 +295,7 @@ async def set_profission(
     player_id: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
+    """Assign profession to player and broadcast update."""
     if not player_id:
         raise HTTPException(status_code=401, detail="Sem sessão de jogador")
     player = session.get(Player, player_id)
@@ -318,6 +329,7 @@ async def toggle_ready(
     player_id: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
+    """Toggle ready status and start generation if all ready."""
     if not player_id:
         raise HTTPException(status_code=401, detail="Sem sessão de jogador")
     player = session.get(Player, player_id)
@@ -353,6 +365,7 @@ async def toggle_ready(
 def _get_character_for_player(
     session: Session, player: Player
 ) -> Optional[Character]:
+    """Fetch character matching player's profession."""
     if not player.profissao:
         return None
     return session.exec(
@@ -369,6 +382,7 @@ def _playing_context(
     team: Optional[Team] = None,
     player: Optional[Player] = None,
 ) -> dict:
+    """Build gameplay template context with clues, characters, actions."""
     characters = list(
         session.exec(
             select(Character).where(Character.game_id == game.id).order_by(Character.id)
@@ -459,6 +473,7 @@ _FUNCAO_ORDER = {
 
 
 def _classified_by_map(session: Session, game_id: str, all_teams: list[Team]) -> dict:
+    """Map clue IDs to teams that classified them."""
     team_map = {t.id: t for t in all_teams}
     from jogo.db.models import Clue
     clues = list(
@@ -479,6 +494,7 @@ def _classified_by_map(session: Session, game_id: str, all_teams: list[Team]) ->
 
 
 def _result_context(session: Session, game: Game, is_host: bool = False) -> dict:
+    """Build result screen context with characters, clues, and stats."""
     from jogo.db.models import Clue
 
     characters = list(
@@ -542,10 +558,12 @@ def _result_context(session: Session, game: Game, is_host: bool = False) -> dict
 # ---------------------------------------------------------------------------
 
 def _host_auth(game: Game, host_token: str) -> bool:
+    """Validate host authentication token."""
     return bool(host_token) and host_token == game.host_token
 
 
 def _host_context(session: Session, game: Game) -> dict:
+    """Build host panel context with teams, characters, and action log."""
     characters = list(
         session.exec(
             select(Character).where(Character.game_id == game.id).order_by(Character.id)
@@ -600,6 +618,7 @@ def host_panel(
     host_token: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
+    """Display host control panel with game overview and actions."""
     game = session.get(Game, game_id.upper())
     if not game:
         raise HTTPException(status_code=404)
@@ -615,6 +634,7 @@ def host_force_cycle(
     host_token: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
+    """Force end current cycle immediately."""
     game = session.get(Game, game_id.upper())
     if not game or not _host_auth(game, host_token):
         raise HTTPException(status_code=403)
@@ -633,6 +653,7 @@ def host_restart_generation(
     host_token: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
+    """Restart narrative generation if it fails."""
     game = session.get(Game, game_id.upper())
     if not game or not _host_auth(game, host_token):
         raise HTTPException(status_code=403)
@@ -648,6 +669,7 @@ async def host_finish_game(
     host_token: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
+    """Finish game and trigger page reload on all connections."""
     game = session.get(Game, game_id.upper())
     if not game or not _host_auth(game, host_token):
         raise HTTPException(status_code=403)
@@ -673,6 +695,7 @@ async def perform_action(
     player_id: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
+    """Execute character action and broadcast updates."""
     if not player_id:
         raise HTTPException(status_code=401, detail="Sem sessão de jogador")
 
@@ -724,6 +747,7 @@ async def make_accusation(
     player_id: str = Cookie(default=""),
     session: Session = Depends(get_session),
 ):
+    """Record team accusation and end game if correct."""
     if not player_id:
         raise HTTPException(status_code=401)
 
@@ -767,6 +791,7 @@ def personagens(
     request: Request,
     session: Session = Depends(get_session),
 ):
+    """Display all 24 characters in a grid view."""
     game = session.get(Game, game_id.upper())
     if not game:
         raise HTTPException(status_code=404)
@@ -787,6 +812,7 @@ def ciclo_info(
     game_id: str,
     session: Session = Depends(get_session),
 ):
+    """Return current cycle info as JSON (for polling)."""
     game = session.get(Game, game_id.upper())
     if not game:
         raise HTTPException(status_code=404)
@@ -804,7 +830,7 @@ def crime_image(
     stage: int,
     session: Session = Depends(get_session),
 ):
-    """Serve o estágio `stage` (1-6) da imagem degradada, ou o original (stage=0)."""
+    """Serve degraded image stage (1-6) or original (stage=0)."""
     game = session.get(Game, game_id.upper())
     if not game or not game.image_ready:
         raise HTTPException(status_code=404, detail="Imagem não disponível")
@@ -826,4 +852,5 @@ def crime_image(
 
 @router.get("/health")
 def health() -> Response:
+    """Health check endpoint."""
     return Response(content="ok", media_type="text/plain")

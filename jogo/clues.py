@@ -180,6 +180,7 @@ def visible_clues(session: Session, game_id: str) -> list[Clue]:
 def visible_clues_by_category(
     session: Session, game_id: str
 ) -> dict[ClueCategory, list[Clue]]:
+    """Group all revealed clues by category."""
     all_clues = visible_clues(session, game_id)
     result: dict[ClueCategory, list[Clue]] = {c: [] for c in ClueCategory}
     for clue in all_clues:
