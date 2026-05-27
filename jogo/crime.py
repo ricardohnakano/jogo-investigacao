@@ -20,21 +20,24 @@ from jogo.game_data import (
 
 
 def _random_personalidade(rng: random.Random) -> str:
+    """Pick 3 random personality traits separated by commas."""
     traits = rng.sample(seed.personalities(), k=3)
     return ", ".join(traits)
 
 
 def _random_age(rng: random.Random) -> int:
+    """Generate random age between 22 and 65."""
     return rng.randint(22, 65)
 
 
 def _random_name(rng: random.Random, genero: str) -> tuple[str, str]:
+    """Generate random first name and surname based on gender."""
     pool = seed.names_male() if genero == "m" else seed.names_female()
     return rng.choice(pool), rng.choice(seed.surnames())
 
 
 def _avatar_seed_from(genero: str, nome: str, sobrenome: str) -> str:
-    """Seed determinística pro avatar (iniciais + cor procedural por enquanto)."""
+    """Generate deterministic avatar seed from gender and name."""
     return f"{genero}:{nome}:{sobrenome}"
 
 

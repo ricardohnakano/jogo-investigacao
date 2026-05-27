@@ -76,6 +76,7 @@ def _generate_maze(size: int) -> list[list[int]]:
 # ---------------------------------------------------------------------------
 
 def _mastermind_state(difficulty: SideQuestDifficulty) -> dict:
+    """Create initial Mastermind game state with secret and attempt log."""
     digits = MASTERMIND_DIGITS_HARD if difficulty == SideQuestDifficulty.HARD else MASTERMIND_DIGITS_NORMAL
     max_attempts = (
         MASTERMIND_MAX_ATTEMPTS_HARD if difficulty == SideQuestDifficulty.HARD
@@ -86,6 +87,7 @@ def _mastermind_state(difficulty: SideQuestDifficulty) -> dict:
 
 
 def _higher_lower_state(difficulty: SideQuestDifficulty) -> dict:
+    """Create initial Higher/Lower game state with secret and attempt log."""
     range_max = HIGHER_LOWER_RANGE_HARD if difficulty == SideQuestDifficulty.HARD else HIGHER_LOWER_RANGE_NORMAL
     max_attempts = (
         HIGHER_LOWER_MAX_ATTEMPTS_HARD if difficulty == SideQuestDifficulty.HARD
@@ -96,12 +98,14 @@ def _higher_lower_state(difficulty: SideQuestDifficulty) -> dict:
 
 
 def _labyrinth_state(difficulty: SideQuestDifficulty) -> dict:
+    """Create initial Labyrinth game state with maze grid and player position."""
     size = LABYRINTH_SIZE_HARD if difficulty == SideQuestDifficulty.HARD else LABYRINTH_SIZE_NORMAL
     grid = _generate_maze(size)
     return {"size": size, "grid": grid, "pos": [0, 0], "goal": [size - 1, size - 1]}
 
 
 def _make_state(kind: SideQuestKind, difficulty: SideQuestDifficulty) -> dict:
+    """Create quest state dict based on quest kind and difficulty."""
     if kind == SideQuestKind.MASTERMIND:
         return _mastermind_state(difficulty)
     if kind == SideQuestKind.HIGHER_LOWER:
@@ -120,6 +124,7 @@ _REWARD_WEIGHTS = [
 
 
 def _pick_reward() -> SideQuestReward:
+    """Randomly choose reward (60% reveal clue, 40% block opponent)."""
     roll = random.random()
     acc = 0.0
     for reward, weight in _REWARD_WEIGHTS:
@@ -224,6 +229,7 @@ def release(session: Session, sq: SideQuest, player_id: str) -> None:
 # ---------------------------------------------------------------------------
 
 def _submit_mastermind(sq: SideQuest, body: dict) -> dict:
+    """Evaluate Mastermind guess and return bulls/cows feedback."""
     state = json.loads(sq.state_json)
     secret: str = state["secret"]
     digits: int = state["digits"]
@@ -249,6 +255,7 @@ def _submit_mastermind(sq: SideQuest, body: dict) -> dict:
 
 
 def _submit_higher_lower(sq: SideQuest, body: dict) -> dict:
+    """Evaluate Higher/Lower guess and return hint (acertou/maior/menor)."""
     state = json.loads(sq.state_json)
     secret: int = state["secret"]
     range_max: int = state["range_max"]
@@ -284,6 +291,7 @@ _MAZE_DIRS = {"up": (-1, 0), "down": (1, 0), "left": (0, -1), "right": (0, 1)}
 
 
 def _submit_labyrinth(sq: SideQuest, body: dict) -> dict:
+    """Process Labyrinth move and return updated position or goal reached."""
     state = json.loads(sq.state_json)
     r, c = state["pos"]
     size: int = state["size"]
@@ -348,6 +356,7 @@ def submit(session: Session, game: Game, sq: SideQuest, body: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def _apply_reward(session: Session, game: Game, sq: SideQuest) -> dict:
+    """Apply quest reward: reveal clue or block opponent character."""
     if sq.reward == SideQuestReward.REVEAL_EXTRA_CLUE:
         clue = session.exec(
             select(Clue)
@@ -397,6 +406,7 @@ def _apply_reward(session: Session, game: Game, sq: SideQuest) -> dict:
 def quests_for_team(
     session: Session, game_id: str, team_id: int, cycle: int
 ) -> list[SideQuest]:
+    """Fetch all side quests for team in given cycle."""
     return list(
         session.exec(
             select(SideQuest).where(
