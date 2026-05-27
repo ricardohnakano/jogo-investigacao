@@ -338,6 +338,12 @@ def execute_action(
     if not result.get("ok"):
         return result
 
+    # P0 Fix: Refresh antes de marcar como usado para evitar race condition
+    # entre múltiplos requests simultâneos do mesmo personagem
+    session.refresh(character)
+    if character.action_used:
+        return {"ok": False, "error": "Ação já foi utilizada por outro jogador neste ciclo"}
+
     action = Action(
         game_id=game.id,
         cycle=game.current_cycle,

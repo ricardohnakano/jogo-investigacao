@@ -46,16 +46,34 @@ def original_path(game_id: str) -> Path:
     return image_dir(game_id) / ORIGINAL_FILENAME
 
 
-def generate_and_degrade(game_id: str, prompt: str) -> None:
-    """Gera imagem original e os 6 estágios degradados. Bloqueante — use asyncio.to_thread."""
-    game_dir = image_dir(game_id)
-    game_dir.mkdir(parents=True, exist_ok=True)
+def generate_and_degrade(game_id: str, prompt: str) -> bool:
+    """Gera imagem original e os 6 estágios degradados. Retorna True se sucesso, False se falha.
 
-    img = _mock_image(prompt) if is_mock_mode() else _call_dalle(prompt)
-    img.save(original_path(game_id))
+    P0 Fix: Se DALLE falha, continua sem imagem em vez de travar o jogo.
+    Bloqueante — use asyncio.to_thread.
+    """
+    try:
+        game_dir = image_dir(game_id)
+        game_dir.mkdir(parents=True, exist_ok=True)
 
-    for stage_n, quality in enumerate(IMAGE_STAGES, start=1):
-        _degrade(img, quality).save(stage_path(game_id, stage_n))
+        img = _mock_image(prompt) if is_mock_mode() else _call_dalle(prompt)
+        img.save(original_path(game_id))
+
+        for stage_n, quality in enumerate(IMAGE_STAGES, start=1):
+            _degrade(img, quality).save(stage_path(game_id, stage_n))
+
+        return True
+    except Exception as e:
+        print(f"[WARNING] Falha ao gerar imagem para {game_id}: {e}")
+        # Cria placeholder se falhar
+        try:
+            img = _mock_image(prompt)
+            img.save(original_path(game_id))
+            for stage_n, quality in enumerate(IMAGE_STAGES, start=1):
+                _degrade(img, quality).save(stage_path(game_id, stage_n))
+        except Exception as e2:
+            print(f"[WARNING] Falha ao criar placeholder: {e2}")
+        return False
 
 
 def _degrade(img: Image.Image, quality: float) -> Image.Image:
